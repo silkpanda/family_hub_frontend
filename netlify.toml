@@ -1,7 +1,7 @@
 # Netlify configuration for the KinKeep web application
 [build]
   # This command installs dependencies for the entire monorepo and builds the web app
-  command = "npm install && npm run build --workspace=web"
+  command = "npm install && npm run build"
   
   # The directory that contains the deploy-ready assets
   publish = "packages/web/dist"
