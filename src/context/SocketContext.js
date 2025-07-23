@@ -1,62 +1,45 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import io from 'socket.io-client';
+import { AuthContext } from './AuthContext';
 
-import { AuthProvider, AuthContext } from './context/AuthContext';
-import { SocketProvider } from './context/SocketContext';
-import { CalendarProvider } from './context/CalendarContext';
+export const SocketContext = createContext();
 
-import LoginPage from './pages/LoginPage';
-import AuthCallbackPage from './pages/AuthCallbackPage';
-import CalendarPage from './pages/CalendarPage';
+export const SocketProvider = ({ children }) => {
+  const [socket, setSocket] = useState(null);
+  const { token } = useContext(AuthContext);
 
-// A protected route component to guard pages that require authentication.
-const ProtectedRoute = ({ children }) => {
-  const { token } = React.useContext(AuthContext);
-  return token ? children : <Navigate to="/login" />;
-};
+  useEffect(() => {
+    // Only attempt to connect if the user is authenticated (has a token).
+    if (token) {
+      const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+      
+      // Pass the token in the 'auth' object. The backend's socket middleware
+      // will use this for authentication before establishing the connection.
+      const newSocket = io(backendUrl, {
+        auth: {
+          token: token,
+        },
+      });
 
-function App() {
+      newSocket.on('connect', () => {
+        console.log('Socket.io connected successfully.');
+        setSocket(newSocket);
+      });
+
+      newSocket.on('connect_error', (err) => {
+        console.error('Socket.io connection error:', err.message);
+      });
+
+      // Cleanup function to close the socket connection when the component unmounts
+      // or when the user logs out (token becomes null).
+      return () => {
+        newSocket.close();
+        setSocket(null);
+      };
+    }
+  }, [token]); // This effect re-runs whenever the token changes.
+
   return (
-    // The AuthProvider must be at the top level.
-    <AuthProvider>
-      {/* The SocketProvider is nested inside AuthProvider so it can access
-        the auth token to establish a secure, authenticated connection.
-      */}
-      <SocketProvider>
-        {/* Feature-specific providers like CalendarProvider go inside SocketProvider
-          so they can access the socket instance for real-time listeners.
-        */}
-        <CalendarProvider>
-          <Router>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/auth/callback" element={<AuthCallbackPage />} />
-              
-              {/* Example of a protected route */}
-              <Route 
-                path="/calendar" 
-                element={
-                  <ProtectedRoute>
-                    <CalendarPage />
-                  </ProtectedRoute>
-                } 
-              />
-
-              {/* Default route redirects to the calendar if logged in, or login if not */}
-              <Route 
-                path="/" 
-                element={
-                  <ProtectedRoute>
-                    <Navigate to="/calendar" />
-                  </ProtectedRoute>
-                } 
-              />
-            </Routes>
-          </Router>
-        </CalendarProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>
   );
-}
-
-export default App;
+};

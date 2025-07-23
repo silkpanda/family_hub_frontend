@@ -1,61 +1,55 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
+// Corrected imports to use named exports from context files
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { CalendarProvider } from './context/CalendarContext';
 
+// Corrected imports for page components (default exports)
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import CalendarPage from './pages/CalendarPage';
 
-// A protected route component to guard pages that require authentication.
-const ProtectedRoute = ({ children }) => {
-  const { token } = React.useContext(AuthContext);
-  return token ? children : <Navigate to="/login" />;
+// This is the core component that handles routing logic.
+// It's rendered by the main App component after the AuthProvider is ready.
+const AppRoutes = () => {
+  const { token, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div>Loading routes...</div>;
+  }
+
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      
+      <Route 
+        path="/calendar" 
+        element={token ? <CalendarPage /> : <Navigate to="/login" replace />} 
+      />
+
+      <Route 
+        path="/" 
+        element={token ? <Navigate to="/calendar" replace /> : <Navigate to="/login" replace />} 
+      />
+    </Routes>
+  );
 };
 
+// The main App component now focuses on setting up providers.
 function App() {
   return (
-    // The AuthProvider must be at the top level.
-    <AuthProvider>
-      {/* The SocketProvider is nested inside AuthProvider so it can access
-        the auth token to establish a secure, authenticated connection.
-      */}
-      <SocketProvider>
-        {/* Feature-specific providers like CalendarProvider go inside SocketProvider
-          so they can access the socket instance for real-time listeners.
-        */}
-        <CalendarProvider>
-          <Router>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/auth/callback" element={<AuthCallbackPage />} />
-              
-              {/* Example of a protected route */}
-              <Route 
-                path="/calendar" 
-                element={
-                  <ProtectedRoute>
-                    <CalendarPage />
-                  </ProtectedRoute>
-                } 
-              />
-
-              {/* Default route redirects to the calendar if logged in, or login if not */}
-              <Route 
-                path="/" 
-                element={
-                  <ProtectedRoute>
-                    <Navigate to="/calendar" />
-                  </ProtectedRoute>
-                } 
-              />
-            </Routes>
-          </Router>
-        </CalendarProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <SocketProvider>
+          <CalendarProvider>
+            <AppRoutes />
+          </CalendarProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

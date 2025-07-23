@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import CalendarService from '../services/calendar.service.js';
-import { SocketContext } from './SocketContext.js'; // Assumes you have this context
+import { SocketContext } from './SocketContext.js';
 
-// Create the context
 export const CalendarContext = createContext();
 
 // Define reducer actions
@@ -54,25 +53,17 @@ export const CalendarProvider = ({ children }) => {
   const [state, dispatch] = useReducer(calendarReducer, initialState);
   const socket = useContext(SocketContext);
 
-  // Real-time listeners
   useEffect(() => {
     if (socket) {
-      // Listen for new events
       socket.on('event:created', (newEvent) => {
         dispatch({ type: actionTypes.ADD_EVENT, payload: newEvent });
       });
-
-      // Listen for updated events
       socket.on('event:updated', (updatedEvent) => {
         dispatch({ type: actionTypes.UPDATE_EVENT, payload: updatedEvent });
       });
-
-      // Listen for deleted events
       socket.on('event:deleted', (data) => {
         dispatch({ type: actionTypes.DELETE_EVENT, payload: { id: data.id } });
       });
-
-      // Cleanup listeners on component unmount
       return () => {
         socket.off('event:created');
         socket.off('event:updated');
@@ -80,8 +71,6 @@ export const CalendarProvider = ({ children }) => {
       };
     }
   }, [socket]);
-
-  // --- Actions ---
 
   const fetchEvents = async () => {
     dispatch({ type: actionTypes.SET_LOADING });
@@ -95,8 +84,6 @@ export const CalendarProvider = ({ children }) => {
 
   const addEvent = async (eventData) => {
     try {
-      // The server will broadcast the 'event:created' event,
-      // so we don't need to dispatch ADD_EVENT here. The listener will catch it.
       await CalendarService.createEvent(eventData);
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
@@ -105,7 +92,6 @@ export const CalendarProvider = ({ children }) => {
 
   const updateEvent = async (id, eventData) => {
     try {
-      // The server broadcasts the update, so the listener will handle the state change.
       await CalendarService.updateEvent(id, eventData);
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
@@ -114,7 +100,6 @@ export const CalendarProvider = ({ children }) => {
 
   const deleteEvent = async (id) => {
     try {
-      // The server broadcasts the deletion, so the listener will handle it.
       await CalendarService.deleteEvent(id);
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });

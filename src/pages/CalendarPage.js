@@ -1,137 +1,86 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import CalendarService from '../services/calendar.service.js';
-import { SocketContext } from './SocketContext.js'; // Assumes you have this context
+import React, { useContext, useEffect, useState, useMemo } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction'; // for dateClick
 
-// Create the context
-export const CalendarContext = createContext();
+import { CalendarContext } from '../context/CalendarContext';
+import EventModal from '../components/calendar/EventModal';
 
-// Define reducer actions
-const actionTypes = {
-  SET_LOADING: 'SET_LOADING',
-  SET_EVENTS: 'SET_EVENTS',
-  ADD_EVENT: 'ADD_EVENT',
-  UPDATE_EVENT: 'UPDATE_EVENT',
-  DELETE_EVENT: 'DELETE_EVENT',
-  SET_ERROR: 'SET_ERROR',
-};
+const CalendarPage = () => {
+  const { events, loading, fetchEvents } = useContext(CalendarContext);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedDateInfo, setSelectedDateInfo] = useState(null);
 
-// Reducer function to manage state
-const calendarReducer = (state, action) => {
-  switch (action.type) {
-    case actionTypes.SET_LOADING:
-      return { ...state, loading: true };
-    case actionTypes.SET_EVENTS:
-      return { ...state, loading: false, events: action.payload, error: null };
-    case actionTypes.ADD_EVENT:
-      return { ...state, events: [...state.events, action.payload] };
-    case actionTypes.UPDATE_EVENT:
-      return {
-        ...state,
-        events: state.events.map((event) =>
-          event._id === action.payload._id ? action.payload : event
-        ),
-      };
-    case actionTypes.DELETE_EVENT:
-      return {
-        ...state,
-        events: state.events.filter((event) => event._id !== action.payload.id),
-      };
-    case actionTypes.SET_ERROR:
-      return { ...state, loading: false, error: action.payload };
-    default:
-      return state;
-  }
-};
-
-// Context Provider Component
-export const CalendarProvider = ({ children }) => {
-  const initialState = {
-    events: [],
-    loading: true,
-    error: null,
-  };
-
-  const [state, dispatch] = useReducer(calendarReducer, initialState);
-  const socket = useContext(SocketContext);
-
-  // Real-time listeners
   useEffect(() => {
-    if (socket) {
-      // Listen for new events
-      socket.on('event:created', (newEvent) => {
-        dispatch({ type: actionTypes.ADD_EVENT, payload: newEvent });
-      });
+    fetchEvents();
+    // The eslint-disable-next-line comment has been removed to fix the compilation error.
+  }, []);
 
-      // Listen for updated events
-      socket.on('event:updated', (updatedEvent) => {
-        dispatch({ type: actionTypes.UPDATE_EVENT, payload: updatedEvent });
-      });
+  // Memoize events to prevent re-rendering and format for FullCalendar
+  const calendarEvents = useMemo(() => {
+    return events.map(event => ({
+      id: event._id,
+      title: event.title,
+      start: event.startTime,
+      end: event.endTime,
+      allDay: event.isAllDay,
+      backgroundColor: event.color,
+      borderColor: event.color,
+      extendedProps: event, // Store original event object for use in modals
+    }));
+  }, [events]);
 
-      // Listen for deleted events
-      socket.on('event:deleted', (data) => {
-        dispatch({ type: actionTypes.DELETE_EVENT, payload: { id: data.id } });
-      });
-
-      // Cleanup listeners on component unmount
-      return () => {
-        socket.off('event:created');
-        socket.off('event:updated');
-        socket.off('event:deleted');
-      };
-    }
-  }, [socket]);
-
-  // --- Actions ---
-
-  const fetchEvents = async () => {
-    dispatch({ type: actionTypes.SET_LOADING });
-    try {
-      const response = await CalendarService.getEvents();
-      dispatch({ type: actionTypes.SET_EVENTS, payload: response.data });
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+  const handleDateSelect = (selectInfo) => {
+    setSelectedDateInfo(selectInfo);
+    setSelectedEvent(null);
+    setIsModalOpen(true);
   };
 
-  const addEvent = async (eventData) => {
-    try {
-      // The server will broadcast the 'event:created' event,
-      // so we don't need to dispatch ADD_EVENT here. The listener will catch it.
-      await CalendarService.createEvent(eventData);
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+  const handleEventClick = (clickInfo) => {
+    setSelectedEvent(clickInfo.event.extendedProps);
+    setSelectedDateInfo(null);
+    setIsModalOpen(true);
   };
 
-  const updateEvent = async (id, eventData) => {
-    try {
-      // The server broadcasts the update, so the listener will handle the state change.
-      await CalendarService.updateEvent(id, eventData);
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedEvent(null);
+    setSelectedDateInfo(null);
   };
 
-  const deleteEvent = async (id) => {
-    try {
-      // The server broadcasts the deletion, so the listener will handle it.
-      await CalendarService.deleteEvent(id);
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
-  };
+  if (loading) {
+    return <div>Loading Calendar...</div>;
+  }
 
   return (
-    <CalendarContext.Provider
-      value={{
-        ...state,
-        fetchEvents,
-        addEvent,
-        updateEvent,
-        deleteEvent,
-      }}
-    >
-      {children}
-    </CalendarContext.Provider>
+    <div className="p-4 md:p-8">
+      <FullCalendar
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        }}
+        initialView="dayGridMonth"
+        events={calendarEvents}
+        selectable={true}
+        select={handleDateSelect}
+        eventClick={handleEventClick}
+        editable={true} // Allows dragging and resizing events
+        // Note: To make drag-and-drop updates work, you would add eventDrop/eventResize handlers here
+        // that call the `updateEvent` function from your context.
+      />
+      {isModalOpen && (
+        <EventModal
+          event={selectedEvent}
+          dateInfo={selectedDateInfo}
+          onClose={closeModal}
+        />
+      )}
+    </div>
   );
 };
+
+export default CalendarPage;
