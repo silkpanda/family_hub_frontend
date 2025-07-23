@@ -1,0 +1,23 @@
+# Netlify configuration for the KinKeep web application
+[build]
+  # This command installs dependencies for the entire monorepo and builds the web app
+  command = "npm install && npm run build --workspace=web"
+  
+  # The directory that contains the deploy-ready assets
+  publish = "packages/web/dist"
+  
+  # The directory where the web app's source code is located
+  base = "."
+
+# Production environment settings
+[build.environment]
+  NODE_VERSION = "20"
+  # You will set this in the Netlify UI. It's the URL of your Render backend.
+  VITE_API_BASE_URL = "https://family-hub-app-backend.onrender.com" 
+  VITE_GOOGLE_CLIENT_ID = "174962723542-6qjsosli57lo0dpjoc4qagrpahqh7vkh.apps.googleusercontent.com"
+
+# Redirects and rewrites rules
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
