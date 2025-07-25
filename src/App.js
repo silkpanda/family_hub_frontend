@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-ro
 
 // --- Context Providers ---
 import { AuthContext, AuthProvider } from './context/AuthContext';
+import { FamilyContext, FamilyProvider } from './context/FamilyContext';
 import { SocketProvider } from './context/SocketContext';
 import { CalendarProvider } from './context/CalendarContext';
 import { ListProvider } from './context/ListContext';
@@ -16,12 +17,7 @@ import ChoresPage from './pages/ChoresPage';
 import MealPlannerPage from './pages/MealPlannerPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
-
-// --- Helper component to protect routes ---
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useContext(AuthContext);
-  return isAuthenticated ? children : <Navigate to="/login" />;
-};
+import OnboardingPage from './pages/OnboardingPage';
 
 // --- Simple Navbar for navigation ---
 const Navbar = () => {
@@ -50,7 +46,6 @@ const Navbar = () => {
     );
 };
 
-
 // --- Layout component to wrap protected pages ---
 const AppLayout = ({ children }) => {
     return (
@@ -65,47 +60,69 @@ const AppLayout = ({ children }) => {
     );
 };
 
-// --- AppRoutes component to handle routing logic ---
+// --- AppRoutes component to handle all routing logic ---
 const AppRoutes = () => {
-    const { loading } = useContext(AuthContext);
+    const { isAuthenticated, loading: authLoading } = useContext(AuthContext);
+    const { family, loading: familyLoading } = useContext(FamilyContext);
 
-    if (loading) {
-        return <div>Loading...</div>;
+    // Show a global loading screen while checking auth and family status
+    if (authLoading || familyLoading) {
+        return <div className="min-h-screen flex items-center justify-center"><p>Loading application...</p></div>;
     }
 
+    // If user is logged in but has not completed onboarding (no family attached),
+    // force them to the onboarding page.
+    if (isAuthenticated && !family) {
+        return (
+            <Routes>
+                <Route path="*" element={<OnboardingPage />} />
+            </Routes>
+        );
+    }
+    
+    // If user is logged in AND has a family, show the main application.
+    if (isAuthenticated && family) {
+        return (
+            <AppLayout>
+                <Routes>
+                    <Route path="/" element={<CalendarPage />} />
+                    <Route path="/lists" element={<ListsPage />} />
+                    <Route path="/chores" element={<ChoresPage />} />
+                    <Route path="/meals" element={<MealPlannerPage />} />
+                    {/* Any other unknown authenticated path redirects to the calendar */}
+                    <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+            </AppLayout>
+        );
+    }
+
+    // If not authenticated, show public routes and redirect all others to login.
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
-            
-            {/* Protected Routes */}
-            <Route path="/" element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/lists" element={<ProtectedRoute><AppLayout><ListsPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/chores" element={<ProtectedRoute><AppLayout><ChoresPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/meals" element={<ProtectedRoute><AppLayout><MealPlannerPage /></AppLayout></ProtectedRoute>} />
-            
-            <Route path="/dashboard" element={<Navigate to="/" />} />
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
     );
 }
-
 
 function App() {
   return (
     <Router>
         <AuthProvider>
-          <SocketProvider>
-            <CalendarProvider>
-              <ListProvider>
-                <ChoreProvider>
-                  <MealProvider>
-                    <AppRoutes />
-                  </MealProvider>
-                </ChoreProvider>
-              </ListProvider>
-            </CalendarProvider>
-          </SocketProvider>
+          <FamilyProvider>
+            <SocketProvider>
+              <CalendarProvider>
+                <ListProvider>
+                  <ChoreProvider>
+                    <MealProvider>
+                      <AppRoutes />
+                    </MealProvider>
+                  </ChoreProvider>
+                </ListProvider>
+              </CalendarProvider>
+            </SocketProvider>
+          </FamilyProvider>
         </AuthProvider>
     </Router>
   );
