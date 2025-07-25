@@ -2,23 +2,21 @@ import React, { useContext, useEffect, useState, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction'; // for dateClick
+import interactionPlugin from '@fullcalendar/interaction'; // for dateClick and drag/resize
 
 import { CalendarContext } from '../context/CalendarContext';
 import EventModal from '../components/calendar/EventModal';
 
 const CalendarPage = () => {
-  const { events, loading, fetchEvents } = useContext(CalendarContext);
+  const { events, loading, fetchEvents, updateEvent } = useContext(CalendarContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDateInfo, setSelectedDateInfo] = useState(null);
 
   useEffect(() => {
     fetchEvents();
-    // The eslint-disable-next-line comment has been removed to fix the compilation error.
-  }, []);
+  }, [fetchEvents]);
 
-  // Memoize events to prevent re-rendering and format for FullCalendar
   const calendarEvents = useMemo(() => {
     return events.map(event => ({
       id: event._id,
@@ -28,7 +26,7 @@ const CalendarPage = () => {
       allDay: event.isAllDay,
       backgroundColor: event.color,
       borderColor: event.color,
-      extendedProps: event, // Store original event object for use in modals
+      extendedProps: event,
     }));
   }, [events]);
 
@@ -50,6 +48,45 @@ const CalendarPage = () => {
     setSelectedDateInfo(null);
   };
 
+  // --- CORRECTED: Handler for when an event is dragged and dropped ---
+  const handleEventDrop = (dropInfo) => {
+    const { event } = dropInfo;
+
+    // Guard Clause: Check for invalid dates after a drop.
+    // This prevents a crash if event.end becomes null.
+    if (!event.start || !event.end) {
+      console.error("Event drop resulted in invalid dates. Reverting.");
+      dropInfo.revert(); // Safely cancel the drop.
+      return;
+    }
+
+    const updatedEventData = {
+      ...event.extendedProps,
+      startTime: event.start.toISOString(),
+      endTime: event.end.toISOString(),
+    };
+    updateEvent(event.id, updatedEventData);
+  };
+
+  // --- CORRECTED: Handler for when an event is resized ---
+  const handleEventResize = (resizeInfo) => {
+    const { event } = resizeInfo;
+
+    // Guard Clause: Also protect the resize handler.
+    if (!event.start || !event.end) {
+      console.error("Event resize resulted in invalid dates. Reverting.");
+      resizeInfo.revert(); // Safely cancel the resize.
+      return;
+    }
+
+    const updatedEventData = {
+      ...event.extendedProps,
+      startTime: event.start.toISOString(),
+      endTime: event.end.toISOString(),
+    };
+    updateEvent(event.id, updatedEventData);
+  };
+
   if (loading) {
     return <div>Loading Calendar...</div>;
   }
@@ -68,9 +105,9 @@ const CalendarPage = () => {
         selectable={true}
         select={handleDateSelect}
         eventClick={handleEventClick}
-        editable={true} // Allows dragging and resizing events
-        // Note: To make drag-and-drop updates work, you would add eventDrop/eventResize handlers here
-        // that call the `updateEvent` function from your context.
+        editable={true}
+        eventDrop={handleEventDrop}
+        eventResize={handleEventResize}
       />
       {isModalOpen && (
         <EventModal

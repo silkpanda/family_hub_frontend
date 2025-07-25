@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import CalendarService from '../services/calendar.service.js';
 import { SocketContext } from './SocketContext.js';
 
@@ -22,6 +22,9 @@ const calendarReducer = (state, action) => {
     case actionTypes.SET_EVENTS:
       return { ...state, loading: false, events: action.payload, error: null };
     case actionTypes.ADD_EVENT:
+      if (state.events.find(event => event._id === action.payload._id)) {
+        return state;
+      }
       return { ...state, events: [...state.events, action.payload] };
     case actionTypes.UPDATE_EVENT:
       return {
@@ -53,6 +56,7 @@ export const CalendarProvider = ({ children }) => {
   const [state, dispatch] = useReducer(calendarReducer, initialState);
   const socket = useContext(SocketContext);
 
+  // This effect handles real-time updates from OTHER users.
   useEffect(() => {
     if (socket) {
       socket.on('event:created', (newEvent) => {
@@ -72,7 +76,7 @@ export const CalendarProvider = ({ children }) => {
     }
   }, [socket]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     dispatch({ type: actionTypes.SET_LOADING });
     try {
       const response = await CalendarService.getEvents();
@@ -80,42 +84,47 @@ export const CalendarProvider = ({ children }) => {
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  };
+  }, []);
 
-  const addEvent = async (eventData) => {
+  const addEvent = useCallback(async (eventData) => {
     try {
-      await CalendarService.createEvent(eventData);
+      const response = await CalendarService.createEvent(eventData);
+      dispatch({ type: actionTypes.ADD_EVENT, payload: response.data });
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  };
+  }, []);
 
-  const updateEvent = async (id, eventData) => {
+  // --- CORRECTED LOGIC for updateEvent ---
+  const updateEvent = useCallback(async (id, eventData) => {
     try {
-      await CalendarService.updateEvent(id, eventData);
+      const response = await CalendarService.updateEvent(id, eventData);
+      dispatch({ type: actionTypes.UPDATE_EVENT, payload: response.data });
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  };
+  }, []);
 
-  const deleteEvent = async (id) => {
+  // --- CORRECTED LOGIC for deleteEvent ---
+  const deleteEvent = useCallback(async (id) => {
     try {
       await CalendarService.deleteEvent(id);
+      dispatch({ type: actionTypes.DELETE_EVENT, payload: { id } });
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    ...state,
+    fetchEvents,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+  }), [state, fetchEvents, addEvent, updateEvent, deleteEvent]);
 
   return (
-    <CalendarContext.Provider
-      value={{
-        ...state,
-        fetchEvents,
-        addEvent,
-        updateEvent,
-        deleteEvent,
-      }}
-    >
+    <CalendarContext.Provider value={contextValue}>
       {children}
     </CalendarContext.Provider>
   );
