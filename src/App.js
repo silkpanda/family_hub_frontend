@@ -6,12 +6,14 @@ import { AuthContext, AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { CalendarProvider } from './context/CalendarContext';
 import { ListProvider } from './context/ListContext';
-import { ChoreProvider } from './context/ChoreContext'; // <-- Import ChoreProvider
+import { ChoreProvider } from './context/ChoreContext';
+import { MealProvider } from './context/MealContext';
 
 // --- Page Components ---
 import CalendarPage from './pages/CalendarPage';
 import ListsPage from './pages/ListsPage';
-import ChoresPage from './pages/ChoresPage'; // <-- Import ChoresPage
+import ChoresPage from './pages/ChoresPage';
+import MealPlannerPage from './pages/MealPlannerPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 
@@ -33,22 +35,14 @@ const Navbar = () => {
                             <span className="text-xl font-bold text-blue-600">Family Hub</span>
                         </div>
                         <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <Link to="/" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                Calendar
-                            </Link>
-                            <Link to="/lists" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                Lists
-                            </Link>
-                            {/* --- ADDED --- Link to the new Chores page */}
-                            <Link to="/chores" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                Chores
-                            </Link>
+                            <Link to="/" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Calendar</Link>
+                            <Link to="/lists" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Lists</Link>
+                            <Link to="/chores" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Chores</Link>
+                            <Link to="/meals" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Meal Planner</Link>
                         </div>
                     </div>
                     <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                        <button onClick={logout} className="bg-red-500 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-red-600">
-                            Logout
-                        </button>
+                        <button onClick={logout} className="bg-red-500 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-red-600">Logout</button>
                     </div>
                 </div>
             </div>
@@ -76,7 +70,7 @@ const AppRoutes = () => {
     const { loading } = useContext(AuthContext);
 
     if (loading) {
-        return <div>Loading...</div>; // Or a spinner component
+        return <div>Loading...</div>;
     }
 
     return (
@@ -85,37 +79,10 @@ const AppRoutes = () => {
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             
             {/* Protected Routes */}
-            <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <CalendarPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/lists" 
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ListsPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } 
-            />
-            {/* --- ADDED --- Route for the new Chores page */}
-            <Route 
-              path="/chores" 
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ChoresPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/" element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/lists" element={<ProtectedRoute><AppLayout><ListsPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/chores" element={<ProtectedRoute><AppLayout><ChoresPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/meals" element={<ProtectedRoute><AppLayout><MealPlannerPage /></AppLayout></ProtectedRoute>} />
             
             <Route path="/dashboard" element={<Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
@@ -131,9 +98,10 @@ function App() {
           <SocketProvider>
             <CalendarProvider>
               <ListProvider>
-                {/* --- ADDED --- ChoreProvider now wraps the router */}
                 <ChoreProvider>
-                  <AppRoutes />
+                  <MealProvider>
+                    <AppRoutes />
+                  </MealProvider>
                 </ChoreProvider>
               </ListProvider>
             </CalendarProvider>
