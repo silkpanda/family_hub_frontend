@@ -1,64 +1,60 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode'; // You may need to install this: npm install jwt-decode
 
-// Create the context with a default shape to prevent render errors.
-// This is the fix for the blank screen issue.
-export const AuthContext = createContext({
-  token: null,
-  user: null,
-  loading: true,
-  login: () => {},
-  logout: () => {},
-});
+export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('authToken'));
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true); // Start in a loading state
 
   useEffect(() => {
+    // Check for a token in localStorage on initial app load
     try {
+      const token = localStorage.getItem('authToken');
       if (token) {
-        // Decode the token to get user information (id, displayName, etc.)
-        const decodedUser = jwtDecode(token);
-        setUser(decodedUser);
+        const decoded = jwtDecode(token);
+        // Check if the token is expired
+        if (decoded.exp * 1000 > Date.now()) {
+          setUser(decoded);
+          setIsAuthenticated(true);
+        } else {
+          // Token is expired, remove it
+          localStorage.removeItem('authToken');
+        }
       }
     } catch (error) {
-      // If token is invalid or expired, clear it
-      console.error("Invalid token:", error);
+      console.error("Error processing token on initial load", error);
       localStorage.removeItem('authToken');
-      setToken(null);
-      setUser(null);
     } finally {
-      setLoading(false);
+      setLoading(false); // Finished loading
     }
-  }, [token]);
+  }, []);
 
-  const login = (newToken) => {
-    localStorage.setItem('authToken', newToken);
-    setToken(newToken);
-  };
+  const login = useCallback((token) => {
+    try {
+      localStorage.setItem('authToken', token);
+      const decoded = jwtDecode(token);
+      setUser(decoded);
+      setIsAuthenticated(true);
+    } catch (error) {
+        console.error("Failed to login", error);
+    }
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('authToken');
-    setToken(null);
     setUser(null);
-    // You might want to redirect the user to the login page here
-    window.location.href = '/login';
-  };
+    setIsAuthenticated(false);
+  }, []);
 
-  const contextValue = {
-    token,
-    user,
-    loading,
-    login,
-    logout,
-  };
+  const contextValue = { user, isAuthenticated, loading, login, logout };
 
-  // We don't render the rest of the app until we've checked for the token
+  // CORRECTED: Always render children. The consumer of the context
+  // will decide what to show based on the 'loading' state.
   return (
     <AuthContext.Provider value={contextValue}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
