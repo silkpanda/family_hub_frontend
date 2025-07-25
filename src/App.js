@@ -6,10 +6,12 @@ import { AuthContext, AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { CalendarProvider } from './context/CalendarContext';
 import { ListProvider } from './context/ListContext';
+import { ChoreProvider } from './context/ChoreContext'; // <-- Import ChoreProvider
 
 // --- Page Components ---
 import CalendarPage from './pages/CalendarPage';
 import ListsPage from './pages/ListsPage';
+import ChoresPage from './pages/ChoresPage'; // <-- Import ChoresPage
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 
@@ -36,6 +38,10 @@ const Navbar = () => {
                             </Link>
                             <Link to="/lists" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Lists
+                            </Link>
+                            {/* --- ADDED --- Link to the new Chores page */}
+                            <Link to="/chores" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Chores
                             </Link>
                         </div>
                     </div>
@@ -99,11 +105,19 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               } 
             />
+            {/* --- ADDED --- Route for the new Chores page */}
+            <Route 
+              path="/chores" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ChoresPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              } 
+            />
             
-            {/* --- FIX --- This new route catches any requests to /dashboard and redirects to the correct homepage */}
             <Route path="/dashboard" element={<Navigate to="/" />} />
-
-            {/* A catch-all to redirect any other unknown path to the main page */}
             <Route path="*" element={<Navigate to="/" />} />
         </Routes>
     );
@@ -117,7 +131,10 @@ function App() {
           <SocketProvider>
             <CalendarProvider>
               <ListProvider>
-                <AppRoutes />
+                {/* --- ADDED --- ChoreProvider now wraps the router */}
+                <ChoreProvider>
+                  <AppRoutes />
+                </ChoreProvider>
               </ListProvider>
             </CalendarProvider>
           </SocketProvider>
