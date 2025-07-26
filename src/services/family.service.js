@@ -1,10 +1,15 @@
-import api from './api'; // Your centralized Axios instance
+import api from './api'; // This import only works if this file is in the same folder as api.js
 
 const API_URL = '/family';
 
 // Create a new family during onboarding
 const createFamily = (familyName, userColor) => {
   return api.post(API_URL, { familyName, userColor });
+};
+
+// Update the family's details (e.g., name)
+const updateFamily = (familyData) => {
+  return api.put(API_URL, familyData);
 };
 
 // Get details for the logged-in user's family
@@ -19,7 +24,6 @@ const getFamilyMembers = () => {
 
 // Add a new member to the family
 const addFamilyMember = (memberData) => {
-  // memberData = { name, color, role, email? }
   return api.post(`${API_URL}/members`, memberData);
 };
 
@@ -41,6 +45,7 @@ const joinFamily = (inviteCode, userColor) => {
 
 const FamilyService = {
   createFamily,
+  updateFamily,
   getFamilyDetails,
   getFamilyMembers,
   addFamilyMember,

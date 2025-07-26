@@ -1,62 +1,50 @@
 import React from 'react';
-import styled, { css } from 'styled-components';
 import { theme } from '../../theme/theme';
 
-const getVariantStyles = ({ variant = 'primary' }) => {
-  switch (variant) {
-    case 'secondary':
-      return css`
-        background-color: ${theme.colors.secondaryBrand};
-        color: #fff;
-        &:hover {
-          opacity: 0.9;
-        }
-      `;
-    case 'tertiary':
-      return css`
-        background-color: transparent;
-        color: ${theme.colors.textPrimary};
-        border: 1px solid ${theme.colors.textSecondary};
-        &:hover {
-          background-color: rgba(0, 0, 0, 0.05);
-        }
-      `;
-    case 'primary':
-    default:
-      return css`
-        background-color: ${theme.colors.accentAction};
-        color: ${theme.colors.textPrimary};
-        &:hover {
-          filter: brightness(105%);
-        }
-      `;
-  }
-};
+const Button = ({ children, variant = 'primary', disabled = false, onClick, style, ...props }) => {
+  const baseStyle = {
+    fontFamily: theme.typography.fontFamily,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
+    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+    borderRadius: theme.spacing.sm,
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease-in-out, opacity 0.2s ease-in-out',
+    ...style,
+  };
 
-const StyledButton = styled.button`
-  padding: ${theme.spacing(1.5)} ${theme.spacing(3)};
-  border-radius: ${theme.borderRadius};
-  border: none;
-  cursor: pointer;
-  font-size: ${theme.typography.body.fontSize};
-  font-weight: 500;
-  transition: all 0.2s ease-in-out;
-  
-  ${(props) => getVariantStyles(props)}
+  const variantStyles = {
+    primary: {
+      backgroundColor: theme.colors.accentAction,
+      color: theme.colors.textPrimary,
+    },
+    secondary: {
+      backgroundColor: theme.colors.primaryBrand,
+      color: theme.colors.neutralSurface,
+    },
+    tertiary: {
+      backgroundColor: 'transparent',
+      color: theme.colors.textPrimary,
+      textDecoration: 'underline',
+    },
+  };
 
-  &:disabled {
-    background-color: #ced4da;
-    color: #6c757d;
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-`;
+  const disabledStyle = {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  };
 
-const Button = ({ children, variant, disabled, onClick, type = 'button' }) => {
+  const finalStyle = {
+    ...baseStyle,
+    ...variantStyles[variant],
+    ...(disabled ? disabledStyle : {}),
+  };
+
   return (
-    <StyledButton variant={variant} disabled={disabled} onClick={onClick} type={type}>
+    <button style={finalStyle} onClick={onClick} disabled={disabled} {...props}>
       {children}
-    </StyledButton>
+    </button>
   );
 };
 

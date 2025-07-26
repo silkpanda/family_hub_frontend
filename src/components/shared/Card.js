@@ -1,17 +1,20 @@
 import React from 'react';
-import styled from 'styled-components';
 import { theme } from '../../theme/theme';
 
-const CardWrapper = styled.div`
-  background-color: ${theme.colors.neutralSurface};
-  border-radius: ${theme.borderRadius};
-  box-shadow: ${theme.boxShadow};
-  padding: ${theme.spacing(3)};
-  width: 100%;
-`;
+const Card = ({ children, style, ...props }) => {
+  const cardStyle = {
+    backgroundColor: theme.colors.neutralSurface,
+    borderRadius: theme.borderRadius.medium,
+    padding: theme.spacing.lg,
+    boxShadow: theme.shadows.medium,
+    ...style,
+  };
 
-const Card = ({ children, style }) => {
-  return <CardWrapper style={style}>{children}</CardWrapper>;
+  return (
+    <div style={cardStyle} {...props}>
+      {children}
+    </div>
+  );
 };
 
 export default Card;

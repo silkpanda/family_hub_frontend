@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
-import FamilyService from '../services/family.service.js';
-import { AuthContext } from './AuthContext.js';
+import FamilyService from 'services/family.service.js'; 
+import { AuthContext } from 'context/AuthContext.js';
 
 export const FamilyContext = createContext();
 
@@ -32,76 +32,115 @@ const familyReducer = (state, action) => {
 export const FamilyProvider = ({ children }) => {
   const initialState = {
     family: null,
-    loading: true, // Initial state is always loading
+    loading: true,
     error: null,
   };
 
   const [state, dispatch] = useReducer(familyReducer, initialState);
   const { isAuthenticated } = useContext(AuthContext);
 
-  // --- FIX ---
-  // The logic for fetching data is now directly inside this useEffect hook,
-  // which correctly depends on the user's authentication status.
-  useEffect(() => {
-    const fetchFamilyData = async () => {
-      dispatch({ type: actionTypes.SET_LOADING });
-      try {
-        const response = await FamilyService.getFamilyDetails();
-        dispatch({ type: actionTypes.SET_FAMILY, payload: response.data });
-      } catch (err) {
-        if (err.response && err.response.status === 404) {
-          dispatch({ type: actionTypes.SET_FAMILY, payload: null });
-        } else {
-          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-        }
-      }
-    };
+  // --- CORRECTED DEPENDENCIES ---
+  // All useCallback hooks now include `dispatch` and any other functions they depend on.
+  // This ensures the functions are stable and prevents the infinite loop.
 
+  const fetchFamilyDetails = useCallback(async () => {
+    dispatch({ type: actionTypes.SET_LOADING });
+    try {
+      const response = await FamilyService.getFamilyDetails();
+      dispatch({ type: actionTypes.SET_FAMILY, payload: response.data });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        dispatch({ type: actionTypes.SET_FAMILY, payload: null });
+      } else {
+        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
     if (isAuthenticated) {
-      fetchFamilyData();
+      fetchFamilyDetails();
     } else {
-      // If the user is not authenticated, there's no family to fetch.
-      // We must explicitly clear any existing family data and set loading to false.
       dispatch({ type: actionTypes.CLEAR_FAMILY });
     }
-  }, [isAuthenticated]); // This effect now correctly re-runs when the auth state changes.
+  }, [isAuthenticated, fetchFamilyDetails, dispatch]);
 
   const createFamily = useCallback(async (familyName, userColor) => {
     try {
-      const response = await FamilyService.createFamily(familyName, userColor);
-      // After creating, we update the state directly with the new family data.
-      dispatch({ type: actionTypes.SET_FAMILY, payload: response.data });
+      await FamilyService.createFamily(familyName, userColor);
+      await fetchFamilyDetails();
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
       throw err;
     }
-  }, []);
+  }, [fetchFamilyDetails, dispatch]);
   
   const addFamilyMember = useCallback(async (memberData) => {
     try {
-      const response = await FamilyService.addFamilyMember(memberData);
-      dispatch({ type: actionTypes.SET_FAMILY, payload: response.data });
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
-  }, []);
-
-  const joinFamily = useCallback(async (inviteCode, userColor) => {
-    try {
-      const response = await FamilyService.joinFamily(inviteCode, userColor);
-      dispatch({ type: actionTypes.SET_FAMILY, payload: response.data });
+      await FamilyService.addFamilyMember(memberData);
+      await fetchFamilyDetails();
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
       throw err;
     }
-  }, []);
+  }, [fetchFamilyDetails, dispatch]);
+
+  const updateFamily = useCallback(async (familyData) => {
+    try {
+        await FamilyService.updateFamily(familyData);
+        await fetchFamilyDetails();
+    } catch (err) {
+        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+        throw err;
+    }
+  }, [fetchFamilyDetails, dispatch]);
+
+  const updateFamilyMember = useCallback(async (memberId, memberData) => {
+    try {
+      const response = await FamilyService.updateFamilyMember(memberId, memberData);
+      await fetchFamilyDetails();
+      return response.data.warning; 
+    } catch (err) {
+      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      throw err;
+    }
+  }, [fetchFamilyDetails, dispatch]);
+
+  const removeFamilyMember = useCallback(async (memberId) => {
+    try {
+      await FamilyService.removeFamilyMember(memberId);
+      await fetchFamilyDetails();
+    } catch (err) {
+      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      throw err;
+    }
+  }, [fetchFamilyDetails, dispatch]);
+
+  const joinFamily = useCallback(async (inviteCode, userColor) => {
+    try {
+      await FamilyService.joinFamily(inviteCode, userColor);
+      await fetchFamilyDetails();
+    } catch (err) {
+      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      throw err;
+    }
+  }, [fetchFamilyDetails, dispatch]);
+
+  const clearFamily = useCallback(() => {
+      dispatch({ type: actionTypes.CLEAR_FAMILY });
+  }, [dispatch]);
 
   const contextValue = useMemo(() => ({
     ...state,
+    fetchFamilyDetails,
     createFamily,
     addFamilyMember,
+    updateFamily,
+    updateFamilyMember,
+    removeFamilyMember,
     joinFamily,
-  }), [state, createFamily, addFamilyMember, joinFamily]);
+    clearFamily,
+  }), [state, fetchFamilyDetails, createFamily, addFamilyMember, updateFamily, updateFamilyMember, removeFamilyMember, joinFamily, clearFamily]);
 
   return (
     <FamilyContext.Provider value={contextValue}>

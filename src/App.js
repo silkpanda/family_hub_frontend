@@ -18,6 +18,7 @@ import MealPlannerPage from './pages/MealPlannerPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import OnboardingPage from './pages/OnboardingPage';
+import ManageFamilyPage from './pages/ManageFamilyPage';
 
 // --- Simple Navbar for navigation ---
 const Navbar = () => {
@@ -35,6 +36,7 @@ const Navbar = () => {
                             <Link to="/lists" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Lists</Link>
                             <Link to="/chores" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Chores</Link>
                             <Link to="/meals" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Meal Planner</Link>
+                            <Link to="/family" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Family</Link>
                         </div>
                     </div>
                     <div className="hidden sm:ml-6 sm:flex sm:items-center">
@@ -45,6 +47,7 @@ const Navbar = () => {
         </nav>
     );
 };
+
 
 // --- Layout component to wrap protected pages ---
 const AppLayout = ({ children }) => {
@@ -65,13 +68,10 @@ const AppRoutes = () => {
     const { isAuthenticated, loading: authLoading } = useContext(AuthContext);
     const { family, loading: familyLoading } = useContext(FamilyContext);
 
-    // Show a global loading screen while checking auth and family status
     if (authLoading || familyLoading) {
         return <div className="min-h-screen flex items-center justify-center"><p>Loading application...</p></div>;
     }
 
-    // If user is logged in but has not completed onboarding (no family attached),
-    // force them to the onboarding page.
     if (isAuthenticated && !family) {
         return (
             <Routes>
@@ -80,7 +80,6 @@ const AppRoutes = () => {
         );
     }
     
-    // If user is logged in AND has a family, show the main application.
     if (isAuthenticated && family) {
         return (
             <AppLayout>
@@ -89,14 +88,13 @@ const AppRoutes = () => {
                     <Route path="/lists" element={<ListsPage />} />
                     <Route path="/chores" element={<ChoresPage />} />
                     <Route path="/meals" element={<MealPlannerPage />} />
-                    {/* Any other unknown authenticated path redirects to the calendar */}
+                    <Route path="/family" element={<ManageFamilyPage />} />
                     <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
             </AppLayout>
         );
     }
 
-    // If not authenticated, show public routes and redirect all others to login.
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
