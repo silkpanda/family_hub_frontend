@@ -4,38 +4,79 @@ const API_URL = '/lists';
 
 // --- List Management ---
 
-const getLists = () => {
-  return api.get(API_URL);
+/**
+ * Fetches all lists.
+ * ✨ FIX: It now awaits the response and returns `response.data` directly.
+ */
+const getLists = async () => {
+  const response = await api.get(API_URL);
+  return response.data;
 };
 
-const createList = (listName) => {
-  return api.post(API_URL, { name: listName });
+/**
+ * Creates a new list.
+ * ✨ FIX: It now awaits the response and returns the new list object from `response.data`.
+ */
+const createList = async (listData) => {
+  // The backend expects an object with a 'name' property.
+  const response = await api.post(API_URL, listData);
+  return response.data;
 };
 
-const updateList = (id, listName) => {
-  return api.put(`${API_URL}/${id}`, { name: listName });
+/**
+ * Updates an existing list's name.
+ * ✨ FIX: It now awaits the response and returns the updated list from `response.data`.
+ */
+const updateList = async (id, listName) => {
+  const response = await api.put(`${API_URL}/${id}`, { name: listName });
+  return response.data;
 };
 
-const deleteList = (id) => {
-  return api.delete(`${API_URL}/${id}`);
+/**
+ * Deletes a list.
+ * ✨ FIX: It now awaits the response and returns the confirmation message from `response.data`.
+ */
+const deleteList = async (id) => {
+  const response = await api.delete(`${API_URL}/${id}`);
+  return response.data;
 };
 
 // --- List Item Management ---
 
-const addItemToList = (listId, itemContent) => {
-  return api.post(`${API_URL}/${listId}/items`, { content: itemContent });
+/**
+ * Adds an item to a specific list.
+ * ✨ FIX: It now awaits the response and returns the entire updated list from `response.data`.
+ */
+const addItemToList = async (listId, itemContent) => {
+  const response = await api.post(`${API_URL}/${listId}/items`, { content: itemContent });
+  return response.data;
 };
 
-const updateListItem = (listId, itemId, itemContent) => {
-  return api.put(`${API_URL}/${listId}/items/${itemId}`, { content: itemContent });
+/**
+ * Updates an item within a list.
+ * ✨ FIX: It now awaits the response and returns the entire updated list from `response.data`.
+ */
+const updateListItem = async (listId, itemId, itemContent) => {
+  const response = await api.put(`${API_URL}/${listId}/items/${itemId}`, { content: itemContent });
+  return response.data;
 };
 
-const deleteListItem = (listId, itemId) => {
-  return api.delete(`${API_URL}/${listId}/items/${itemId}`);
+/**
+ * Deletes an item from a list.
+ * ✨ FIX: It now awaits the response and returns the confirmation message from `response.data`.
+ */
+const deleteListItem = async (listId, itemId) => {
+  const response = await api.delete(`${API_URL}/${listId}/items/${itemId}`);
+  return response.data;
 };
 
-const toggleListItemCompletion = (listId, itemId) => {
-  return api.patch(`${API_URL}/${listId}/items/${itemId}/toggle`);
+/**
+ * Toggles an item's completion status.
+ * ✨ FIX: It now awaits the response and returns the entire updated list from `response.data`.
+ */
+const toggleListItemCompletion = async (listId, itemId) => {
+  const response = await api.patch(`${API_URL}/${listId}/items/${itemId}/toggle`);
+  return response.data;
 };
 
 

@@ -1,4 +1,7 @@
-import api from './api'; // Your centralized Axios instance
+// Purpose: This file acts as the dedicated API layer for the calendar feature.
+// It abstracts all `axios` calls, so components don't need to know about API endpoints.
+// ===================================================================================
+import api from './api'; // The centralized Axios instance
 
 const API_URL = '/calendar/events';
 

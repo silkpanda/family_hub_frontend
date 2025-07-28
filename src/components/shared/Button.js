@@ -1,3 +1,4 @@
+// /frontend/src/components/shared/Button.js
 import React from 'react';
 import { theme } from '../../theme/theme';
 
@@ -26,8 +27,12 @@ const Button = ({ children, variant = 'primary', disabled = false, onClick, styl
     tertiary: {
       backgroundColor: 'transparent',
       color: theme.colors.textPrimary,
-      textDecoration: 'underline',
     },
+    // --- NEW ---
+    danger: {
+      backgroundColor: theme.colors.semanticError,
+      color: theme.colors.neutralSurface,
+    }
   };
 
   const disabledStyle = {

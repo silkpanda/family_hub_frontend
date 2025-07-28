@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import MealService from '../services/meal.service.js';
 import { SocketContext } from './SocketContext.js';
-import { ListContext } from './ListContext.js'; // To trigger list refresh
+import { ListContext } from './ListContext.js';
 
 export const MealContext = createContext();
 
@@ -16,11 +16,11 @@ const actionTypes = {
   SET_ERROR: 'SET_ERROR',
 };
 
-// --- Reducer ---
+// --- Reducer Implementation ---
 const mealReducer = (state, action) => {
   switch (action.type) {
     case actionTypes.SET_LOADING:
-      return { ...state, loading: true };
+      return { ...state, loading: true, error: null };
     case actionTypes.SET_RECIPES:
       return { ...state, recipes: action.payload, loading: false };
     case actionTypes.ADD_RECIPE:
@@ -55,9 +55,8 @@ export const MealProvider = ({ children }) => {
 
   const [state, dispatch] = useReducer(mealReducer, initialState);
   const socket = useContext(SocketContext);
-  const { fetchLists } = useContext(ListContext); // Get list refresh function
+  const { fetchLists } = useContext(ListContext);
 
-  // Real-time listener for meal plan updates
   useEffect(() => {
     if (socket) {
       socket.on('mealplan:updated', (updatedPlan) => {
@@ -67,7 +66,6 @@ export const MealProvider = ({ children }) => {
     }
   }, [socket]);
 
-  // --- Actions ---
   const fetchRecipes = useCallback(async () => {
     dispatch({ type: actionTypes.SET_LOADING });
     try {
@@ -76,7 +74,7 @@ export const MealProvider = ({ children }) => {
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
   const createRecipe = useCallback(async (recipeData) => {
     try {
@@ -85,7 +83,7 @@ export const MealProvider = ({ children }) => {
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
   
   const deleteRecipe = useCallback(async (id) => {
     try {
@@ -94,7 +92,7 @@ export const MealProvider = ({ children }) => {
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
   const fetchMealPlan = useCallback(async () => {
     dispatch({ type: actionTypes.SET_LOADING });
@@ -104,7 +102,7 @@ export const MealProvider = ({ children }) => {
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
   const addRecipeToPlan = useCallback(async (planData) => {
     try {
@@ -113,7 +111,7 @@ export const MealProvider = ({ children }) => {
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
   
   const removeRecipeFromPlan = useCallback(async (planData) => {
     try {
@@ -122,19 +120,18 @@ export const MealProvider = ({ children }) => {
     } catch (err) {
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
   const addIngredientsToList = useCallback(async (recipeId, listId) => {
       try {
           await MealService.addIngredientsToList(recipeId, listId);
-          fetchLists(); // Refresh the lists to show the new ingredients
+          fetchLists();
       } catch (err) {
           dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
       }
-  }, [fetchLists]);
+  }, [fetchLists, dispatch]);
 
-  const contextValue = useMemo(() => ({
-    ...state,
+  const actions = useMemo(() => ({
     fetchRecipes,
     createRecipe,
     deleteRecipe,
@@ -142,7 +139,12 @@ export const MealProvider = ({ children }) => {
     addRecipeToPlan,
     removeRecipeFromPlan,
     addIngredientsToList,
-  }), [state, fetchRecipes, createRecipe, deleteRecipe, fetchMealPlan, addRecipeToPlan, removeRecipeFromPlan, addIngredientsToList]);
+  }), [fetchRecipes, createRecipe, deleteRecipe, fetchMealPlan, addRecipeToPlan, removeRecipeFromPlan, addIngredientsToList]);
+
+  const contextValue = useMemo(() => ({
+    ...state,
+    ...actions,
+  }), [state, actions]);
 
   return (
     <MealContext.Provider value={contextValue}>

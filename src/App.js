@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { theme } from './theme/theme';
 
 // --- Context Providers ---
 import { AuthContext, AuthProvider } from './context/AuthContext';
@@ -20,44 +21,28 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import OnboardingPage from './pages/OnboardingPage';
 import ManageFamilyPage from './pages/ManageFamilyPage';
 
-// --- Simple Navbar for navigation ---
-const Navbar = () => {
-    const { logout } = useContext(AuthContext);
-    return (
-        <nav className="bg-white shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-16">
-                    <div className="flex">
-                        <div className="flex-shrink-0 flex items-center">
-                            <span className="text-xl font-bold text-blue-600">Family Hub</span>
-                        </div>
-                        <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <Link to="/" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Calendar</Link>
-                            <Link to="/lists" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Lists</Link>
-                            <Link to="/chores" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Chores</Link>
-                            <Link to="/meals" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Meal Planner</Link>
-                            <Link to="/family" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Family</Link>
-                        </div>
-                    </div>
-                    <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                        <button onClick={logout} className="bg-red-500 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-red-600">Logout</button>
-                    </div>
-                </div>
-            </div>
-        </nav>
-    );
-};
+// --- Layout Components ---
+import Sidebar from './components/layout/Sidebar'; // <-- New Sidebar import
 
-
-// --- Layout component to wrap protected pages ---
+// --- Layout component to wrap protected pages with the new sidebar ---
 const AppLayout = ({ children }) => {
+    const layoutStyle = {
+        display: 'flex',
+        height: '100vh',
+        backgroundColor: theme.colors.neutralBackground,
+    };
+
+    const mainContentStyle = {
+        flexGrow: 1,
+        overflowY: 'auto', // Allows content to scroll independently
+        padding: theme.spacing.xl,
+    };
+
     return (
-        <div>
-            <Navbar />
-            <main>
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    {children}
-                </div>
+        <div style={layoutStyle}>
+            <Sidebar />
+            <main style={mainContentStyle}>
+                {children}
             </main>
         </div>
     );
@@ -69,7 +54,7 @@ const AppRoutes = () => {
     const { family, loading: familyLoading } = useContext(FamilyContext);
 
     if (authLoading || familyLoading) {
-        return <div className="min-h-screen flex items-center justify-center"><p>Loading application...</p></div>;
+        return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Loading application...</p></div>;
     }
 
     if (isAuthenticated && !family) {

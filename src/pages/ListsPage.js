@@ -1,62 +1,86 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { ListContext } from '../context/ListContext';
-import ListComponent from '../components/lists/ListComponent'; // Assuming ListComponent is moved to its own file
+import ListComponent from '../components/lists/ListComponent';
+import { theme } from '../theme/theme';
+import Card from '../components/shared/Card';
+import InputField from '../components/shared/InputField';
+import Button from '../components/shared/Button';
 
+/**
+ * The main page component for displaying and managing all lists.
+ */
 const ListsPage = () => {
-  const { lists, loading, fetchLists, createList } = useContext(ListContext);
+  // Destructure state properties and the actions object directly from the context.
+  // This is cleaner and aligns with the new context value structure.
+  const { lists, loading, actions } = useContext(ListContext);
+  const { fetchLists, createList } = actions;
+
+  // Local state for the "create new list" input field.
   const [newListName, setNewListName] = useState('');
 
+  // The `useEffect` hook to fetch lists when the component first mounts.
+  // `fetchLists` is a dependency, but because it's wrapped in `useCallback` in the
+  // context, it has a stable reference and won't cause an infinite loop.
   useEffect(() => {
-    // Fetch lists when the component mounts
     fetchLists();
   }, [fetchLists]);
 
+  /**
+   * Handles the submission of the "create new list" form.
+   */
   const handleCreateList = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent page reload.
     if (newListName.trim()) {
+      // Call the context action to create the list.
       createList(newListName.trim());
+      // Clear the input field.
       setNewListName('');
     }
   };
 
+  // Display a loading message while the initial data fetch is in progress.
   if (loading) {
-    return (
-        <div className="p-4 md:p-8 text-center">
-            <p className="text-gray-500">Loading lists...</p>
-        </div>
-    );
+    return <div>Loading lists...</div>;
   }
 
+  // A safeguard to prevent crashing if `lists` is not an array.
+  if (!Array.isArray(lists)) {
+    return <div>No lists found or there was an error loading them.</div>;
+  }
+
+  const pageStyle = {
+    fontFamily: theme.typography.fontFamily,
+    color: theme.colors.textPrimary,
+    padding: theme.spacing.xl, // Add some padding around the page
+  };
+
   return (
-    <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Shared Lists</h1>
+    <div style={pageStyle}>
+      <h1 style={{ ...theme.typography.h1, marginBottom: theme.spacing.lg }}>Shared Lists</h1>
       
-      {/* Form to create a new list */}
-      <div className="mb-8 bg-white p-4 rounded-lg shadow-sm">
-        <form onSubmit={handleCreateList} className="flex max-w-lg">
-           <input
-            type="text"
+      {/* Card containing the form to create a new list */}
+      <Card style={{ marginBottom: theme.spacing.xl }}>
+        <form onSubmit={handleCreateList} style={{ display: 'flex', gap: theme.spacing.md }}>
+           <InputField
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
-            placeholder="Create a new list (e.g., Groceries, Weekend Chores)"
-            className="flex-grow border border-gray-300 rounded-l-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Create a new list (e.g., Groceries)"
+            style={{ flexGrow: 1, marginBottom: 0 }}
           />
-          <button type="submit" className="bg-green-600 text-white py-2 px-4 rounded-r-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-            Create
-          </button>
+          <Button type="submit" variant="secondary">Create</Button>
         </form>
-      </div>
+      </Card>
 
-      {/* Display existing lists */}
+      {/* Display all the lists */}
       <div>
         {lists.length > 0 ? (
-          <div className="space-y-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
+            {/* Map over the lists array and render a ListComponent for each one. */}
             {lists.map(list => <ListComponent key={list._id} list={list} />)}
           </div>
         ) : (
-          <div className="text-center py-10">
-            <p className="text-gray-500">No lists yet. Create one to get started!</p>
-          </div>
+          // Show a message if there are no lists to display.
+          <p style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>No lists yet. Create one to get started!</p>
         )}
       </div>
     </div>

@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { MealContext } from '../../context/MealContext';
 import { useDroppable } from '@dnd-kit/core';
+import { theme } from '../../theme/theme';
+import Card from '../shared/Card';
 
 // Helper function to get the dates for the current week (Sun-Sat)
 const getWeekDates = () => {
@@ -16,29 +18,39 @@ const getWeekDates = () => {
 };
 
 // --- DayCell Component ---
-// This new component represents a single day in the calendar and acts as a drop zone.
 const DayCell = ({ date, meals }) => {
     const { isOver, setNodeRef } = useDroppable({
-        id: date.toISOString(), // A unique ID for this droppable area
+        id: date.toISOString(),
         data: {
             date: date,
-            isDayCell: true, // Custom data to identify this as a valid drop target
+            isDayCell: true,
         },
     });
 
-    const style = {
-        backgroundColor: isOver ? '#e0f2fe' : undefined, // Highlight when dragging over
-        border: isOver ? '2px dashed #0284c7' : '1px solid #e5e7eb',
+    const cellStyle = {
+        minHeight: '150px',
+        backgroundColor: isOver ? '#e0f2fe' : theme.colors.neutralBackground,
+        border: isOver ? `2px dashed ${theme.colors.primaryBrand}` : `1px solid #e0e0e0`,
+        borderRadius: theme.spacing.sm,
+        padding: theme.spacing.sm,
+        transition: 'background-color 0.2s ease-in-out, border-color 0.2s ease-in-out',
+    };
+
+    const dateNumberStyle = {
+        ...theme.typography.body,
+        fontWeight: '600',
+        textAlign: 'center',
+        marginBottom: theme.spacing.sm,
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="rounded-lg p-2 min-h-[150px] bg-gray-50 transition-colors">
-            <p className="font-semibold text-sm text-center">{date.getDate()}</p>
-            <div className="mt-1 space-y-1">
+        <div ref={setNodeRef} style={cellStyle}>
+            <p style={dateNumberStyle}>{date.getDate()}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
                 {meals.map((meal, index) => (
-                    <div key={index} className="bg-blue-100 text-blue-800 text-xs rounded px-2 py-1 relative group">
-                        <p className="font-semibold">{meal.mealType}</p>
-                        <p className="truncate">{meal.recipeId?.name || 'Recipe not found'}</p>
+                    <div key={index} style={{ backgroundColor: theme.colors.secondaryBrand, color: theme.colors.neutralSurface, padding: theme.spacing.xs, borderRadius: theme.spacing.xs }}>
+                        <p style={{ ...theme.typography.caption, fontWeight: 'bold' }}>{meal.mealType}</p>
+                        <p style={{ ...theme.typography.caption, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meal.recipeId?.name || 'Recipe not found'}</p>
                     </div>
                 ))}
             </div>
@@ -61,13 +73,20 @@ const MealPlanCalendar = () => {
     return <div className="text-center p-4">Loading meal plan...</div>;
   }
 
+  const headerCellStyle = {
+    ...theme.typography.body,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    paddingBottom: theme.spacing.md,
+  };
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4">This Week's Plan</h2>
-      <div className="grid grid-cols-7 gap-2">
+    <Card>
+      <h2 style={{ ...theme.typography.h3, marginBottom: theme.spacing.lg }}>This Week's Plan</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: theme.spacing.md }}>
         {/* Render headers */}
         {weekDates.map(date => (
-          <div key={date.toISOString()} className="font-bold text-gray-700 text-center">
+          <div key={date.toISOString()} style={headerCellStyle}>
             {date.toLocaleDateString('en-US', { weekday: 'short' })}
           </div>
         ))}
@@ -75,6 +94,7 @@ const MealPlanCalendar = () => {
         {/* Render day cells */}
         {weekDates.map(date => {
           const dateKey = date.toISOString().split('T')[0];
+          // Mongoose Map is converted to an object when using .lean()
           const mealsForDay = mealPlan.plan[dateKey] || [];
           
           return (
@@ -82,7 +102,7 @@ const MealPlanCalendar = () => {
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 };
 

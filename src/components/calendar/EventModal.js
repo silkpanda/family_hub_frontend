@@ -1,9 +1,24 @@
+// ===================================================================================
+// File: src/components/calendar/EventModal.js
+// Purpose: This component is the modal (pop-up) used for creating and editing events.
+// It uses the shared "Branded Core" components for a consistent UI.
+// ===================================================================================
 import React, { useState, useContext, useEffect } from 'react';
 import { CalendarContext } from '../../context/CalendarContext';
+import { theme } from '../../theme/theme';
+import Card from '../shared/Card';
+import Button from '../shared/Button';
+import InputField from '../shared/InputField';
 
 const EventModal = ({ event, dateInfo, onClose }) => {
-  const { addEvent, updateEvent, deleteEvent } = useContext(CalendarContext);
+  // --- State Management ---
+  // --- FIX ---
+  // The destructuring from the context has been rewritten to be more explicit.
+  // This resolves the parsing error by separating the hook call from the destructuring.
+  const calendarContext = useContext(CalendarContext);
+  const { addEvent, updateEvent, deleteEvent } = calendarContext;
 
+  // Local state to manage the form fields.
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -11,11 +26,15 @@ const EventModal = ({ event, dateInfo, onClose }) => {
     endTime: '',
   });
   
+  // Determines if the modal is for editing an existing event or creating a new one.
   const isEditing = event !== null;
 
+  // --- Form Population ---
+  // This effect runs when the modal opens. It populates the form fields based on
+  // whether we are editing an existing event or creating a new one.
   useEffect(() => {
     if (isEditing) {
-      // Format dates for the datetime-local input
+      // Helper to format date strings correctly for the <input type="datetime-local"> element.
       const formatForInput = (date) => new Date(date).toISOString().slice(0, 16);
       setFormData({
         title: event.title,
@@ -34,16 +53,18 @@ const EventModal = ({ event, dateInfo, onClose }) => {
     }
   }, [event, dateInfo, isEditing]);
 
+  // --- Event Handlers ---
+  // A generic handler to update the form state as the user types.
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handles the form submission.
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevents the default browser page reload on form submission.
     const eventData = {
         ...formData,
-        // Convert back to full ISO string for the backend
         startTime: new Date(formData.startTime).toISOString(),
         endTime: new Date(formData.endTime).toISOString(),
     };
@@ -53,59 +74,57 @@ const EventModal = ({ event, dateInfo, onClose }) => {
     } else {
       addEvent(eventData);
     }
-    onClose();
+    onClose(); // Close the modal after submission.
   };
   
+  // Handles the delete action.
   const handleDelete = () => {
+    // A simple confirmation dialog before deleting.
     if (window.confirm('Are you sure you want to delete this event?')) {
         deleteEvent(event._id);
         onClose();
     }
   }
 
+  // This style creates the dark, semi-transparent overlay behind the modal.
+  const modalOverlayStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center', // Vertically centers the modal
+    justifyContent: 'center', // Horizontally centers the modal
+    zIndex: 1000, // Ensures the modal appears on top of other content
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4">{isEditing ? 'Edit Event' : 'Add Event'}</h2>
+    <div style={modalOverlayStyle}>
+      <Card style={{ width: '100%', maxWidth: '500px' }}>
+        <h2 style={{ ...theme.typography.h3, color: theme.colors.textPrimary, marginBottom: theme.spacing.lg }}>
+            {isEditing ? 'Edit Event' : 'Add Event'}
+        </h2>
         <form onSubmit={handleSubmit}>
-          {/* Form fields */}
-          <div className="mb-4">
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
-            <input type="text" name="title" id="title" value={formData.title} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"/>
-          </div>
-          <div className="mb-4">
-            <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">Start Time</label>
-            <input type="datetime-local" name="startTime" id="startTime" value={formData.startTime} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"/>
-          </div>
-          <div className="mb-4">
-            <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">End Time</label>
-            <input type="datetime-local" name="endTime" id="endTime" value={formData.endTime} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"/>
-          </div>
-          <div className="mb-4">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea name="description" id="description" rows="3" value={formData.description} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
-          </div>
+          <InputField label="Title" name="title" value={formData.title} onChange={handleChange} required />
+          <InputField label="Start Time" name="startTime" type="datetime-local" value={formData.startTime} onChange={handleChange} required />
+          <InputField label="End Time" name="endTime" type="datetime-local" value={formData.endTime} onChange={handleChange} required />
+          <InputField label="Description" name="description" as="textarea" value={formData.description} onChange={handleChange} />
           
-          {/* Action Buttons */}
-          <div className="flex justify-between items-center mt-6">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: theme.spacing.lg }}>
             <div>
                 {isEditing && (
-                    <button type="button" onClick={handleDelete} className="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">
-                        Delete
-                    </button>
+                    <Button type="button" variant="danger" onClick={handleDelete}>Delete</Button>
                 )}
             </div>
-            <div>
-                <button type="button" onClick={onClose} className="mr-2 bg-gray-200 py-2 px-4 rounded-md hover:bg-gray-300">
-                    Cancel
-                </button>
-                <button type="submit" className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
-                    {isEditing ? 'Save Changes' : 'Create Event'}
-                </button>
+            <div style={{ display: 'flex', gap: theme.spacing.md }}>
+                <Button type="button" variant="tertiary" onClick={onClose}>Cancel</Button>
+                <Button type="submit" variant="primary">{isEditing ? 'Save Changes' : 'Create Event'}</Button>
             </div>
           </div>
         </form>
-      </div>
+      </Card>
     </div>
   );
 };

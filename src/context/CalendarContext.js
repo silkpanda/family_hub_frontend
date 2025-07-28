@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
+// Purpose: This is the state management hub for the calendar feature. It holds the
+// "single source of truth" for all event data and provides functions to modify that data.
+// ===================================================================================
+import React, { createContext, useReducer, useMemo, useCallback } from 'react';
 import CalendarService from '../services/calendar.service.js';
-import { SocketContext } from './SocketContext.js';
 
 export const CalendarContext = createContext();
 
-// Define reducer actions
+// --- Reducer Actions ---
+// Defines the types of state mutations that are possible.
 const actionTypes = {
   SET_LOADING: 'SET_LOADING',
   SET_EVENTS: 'SET_EVENTS',
@@ -14,17 +17,15 @@ const actionTypes = {
   SET_ERROR: 'SET_ERROR',
 };
 
-// Reducer function to manage state
+// --- Reducer Function ---
+// A pure function that takes the current state and an action, and returns the new state.
 const calendarReducer = (state, action) => {
   switch (action.type) {
     case actionTypes.SET_LOADING:
-      return { ...state, loading: true };
+      return { ...state, loading: true, error: null };
     case actionTypes.SET_EVENTS:
-      return { ...state, loading: false, events: action.payload, error: null };
+      return { ...state, loading: false, events: action.payload };
     case actionTypes.ADD_EVENT:
-      if (state.events.find(event => event._id === action.payload._id)) {
-        return state;
-      }
       return { ...state, events: [...state.events, action.payload] };
     case actionTypes.UPDATE_EVENT:
       return {
@@ -45,7 +46,7 @@ const calendarReducer = (state, action) => {
   }
 };
 
-// Context Provider Component
+// --- Context Provider Component ---
 export const CalendarProvider = ({ children }) => {
   const initialState = {
     events: [],
@@ -54,67 +55,49 @@ export const CalendarProvider = ({ children }) => {
   };
 
   const [state, dispatch] = useReducer(calendarReducer, initialState);
-  const socket = useContext(SocketContext);
 
-  // This effect handles real-time updates from OTHER users.
-  useEffect(() => {
-    if (socket) {
-      socket.on('event:created', (newEvent) => {
-        dispatch({ type: actionTypes.ADD_EVENT, payload: newEvent });
-      });
-      socket.on('event:updated', (updatedEvent) => {
-        dispatch({ type: actionTypes.UPDATE_EVENT, payload: updatedEvent });
-      });
-      socket.on('event:deleted', (data) => {
-        dispatch({ type: actionTypes.DELETE_EVENT, payload: { id: data.id } });
-      });
-      return () => {
-        socket.off('event:created');
-        socket.off('event:updated');
-        socket.off('event:deleted');
-      };
-    }
-  }, [socket]);
-
+  // --- Actions ---
+  // These are the functions that UI components will call. They are wrapped in `useCallback`
+  // with the `dispatch` dependency to ensure they are stable and don't cause re-renders.
   const fetchEvents = useCallback(async () => {
     dispatch({ type: actionTypes.SET_LOADING });
     try {
-      const response = await CalendarService.getEvents();
-      dispatch({ type: actionTypes.SET_EVENTS, payload: response.data });
+        const response = await CalendarService.getEvents();
+        dispatch({ type: actionTypes.SET_EVENTS, payload: response.data });
     } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
   const addEvent = useCallback(async (eventData) => {
     try {
-      const response = await CalendarService.createEvent(eventData);
-      dispatch({ type: actionTypes.ADD_EVENT, payload: response.data });
+        const response = await CalendarService.createEvent(eventData);
+        dispatch({ type: actionTypes.ADD_EVENT, payload: response.data });
     } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
-  // --- CORRECTED LOGIC for updateEvent ---
   const updateEvent = useCallback(async (id, eventData) => {
     try {
-      const response = await CalendarService.updateEvent(id, eventData);
-      dispatch({ type: actionTypes.UPDATE_EVENT, payload: response.data });
+        const response = await CalendarService.updateEvent(id, eventData);
+        dispatch({ type: actionTypes.UPDATE_EVENT, payload: response.data });
     } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
-  // --- CORRECTED LOGIC for deleteEvent ---
   const deleteEvent = useCallback(async (id) => {
     try {
-      await CalendarService.deleteEvent(id);
-      dispatch({ type: actionTypes.DELETE_EVENT, payload: { id } });
+        await CalendarService.deleteEvent(id);
+        dispatch({ type: actionTypes.DELETE_EVENT, payload: { id } });
     } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
-  }, []);
+  }, [dispatch]);
 
+  // The `useMemo` hook ensures that the context value object itself is stable,
+  // preventing unnecessary re-renders in consumer components.
   const contextValue = useMemo(() => ({
     ...state,
     fetchEvents,
