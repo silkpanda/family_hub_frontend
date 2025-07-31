@@ -1,57 +1,25 @@
-import api from './api'; // Your centralized Axios instance
+// ===================================================================================
+// File: /src/services/meal.service.js
+// Purpose: Encapsulates all API calls for the meal planning feature, including
+// recipe management and meal plan updates.
+// ===================================================================================
+import api from './api';
 
-const API_URL = '/meals';
+const API_URL_MEAL = '/meals';
 
-// --- Recipe Box Functions ---
+// --- Recipe Endpoints ---
+const getAllRecipes = () => api.get(`${API_URL_MEAL}/recipes`).then(res => res.data);
+const createRecipe = (data) => api.post(`${API_URL_MEAL}/recipes`, data).then(res => res.data);
+const updateRecipe = (id, data) => api.put(`${API_URL_MEAL}/recipes/${id}`, data).then(res => res.data);
+const deleteRecipe = (id) => api.delete(`${API_URL_MEAL}/recipes/${id}`).then(res => res.data);
+const addIngredientsToList = (recipeId, listId) => api.post(`${API_URL_MEAL}/recipes/${recipeId}/add-to-list`, { listId }).then(res => res.data);
 
-const getAllRecipes = () => {
-  return api.get(`${API_URL}/recipes`);
-};
+// --- Meal Plan Endpoints ---
+const getMealPlan = () => api.get(`${API_URL_MEAL}/plan`).then(res => res.data);
+const addRecipeToPlan = (data) => api.post(`${API_URL_MEAL}/plan`, data).then(res => res.data);
+// Note: This DELETE request sends a body, which is non-standard. It should be
+// refactored to use URL params or query strings.
+const removeRecipeFromPlan = (data) => api.delete(`${API_URL_MEAL}/plan`, { data }).then(res => res.data);
 
-const createRecipe = (recipeData) => {
-  return api.post(`${API_URL}/recipes`, recipeData);
-};
-
-const updateRecipe = (id, recipeData) => {
-  return api.put(`${API_URL}/recipes/${id}`, recipeData);
-};
-
-const deleteRecipe = (id) => {
-  return api.delete(`${API_URL}/recipes/${id}`);
-};
-
-const addIngredientsToList = (recipeId, listId) => {
-  return api.post(`${API_URL}/recipes/${recipeId}/add-to-list`, { listId });
-};
-
-
-// --- Meal Plan Functions ---
-
-const getMealPlan = () => {
-  return api.get(`${API_URL}/plan`);
-};
-
-const addRecipeToPlan = (planData) => {
-  // planData = { recipeId, date, mealType }
-  // CORRECTED: The variable is now API_URL with a single underscore.
-  return api.post(`${API_URL}/plan`, planData);
-};
-
-const removeRecipeFromPlan = (planData) => {
-  // planData = { recipeId, date, mealType }
-  return api.delete(`${API_URL}/plan`, { data: planData });
-};
-
-
-const MealService = {
-  getAllRecipes,
-  createRecipe,
-  updateRecipe,
-  deleteRecipe,
-  addIngredientsToList,
-  getMealPlan,
-  addRecipeToPlan,
-  removeRecipeFromPlan,
-};
-
+const MealService = { getAllRecipes, createRecipe, updateRecipe, deleteRecipe, addIngredientsToList, getMealPlan, addRecipeToPlan, removeRecipeFromPlan };
 export default MealService;

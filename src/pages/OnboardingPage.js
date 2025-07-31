@@ -1,22 +1,22 @@
+// ===================================================================================
+// File: /src/pages/OnboardingPage.js
+// Purpose: Guides a new user through the process of either creating a new family
+// household or joining an existing one with an invite code. This is a critical step
+// that must be completed before the user can access the main application features.
+// ===================================================================================
 import React, { useState, useContext } from 'react';
 import { FamilyContext } from '../context/FamilyContext';
 
-// This is a list of Google Calendar's default event colors.
+// A consistent set of colors for the user to choose from.
 const GOOGLE_CALENDAR_COLORS = [
-    { name: 'Blue', hex: '#039be5' },
-    { name: 'Lavender', hex: '#7986cb' },
-    { name: 'Sage', hex: '#33b679' },
-    { name: 'Grape', hex: '#8e24aa' },
-    { name: 'Flamingo', hex: '#e67c73' },
-    { name: 'Banana', hex: '#f6c026' },
-    { name: 'Tangerine', hex: '#f5511d' },
-    { name: 'Peacock', hex: '#009688' },
-    { name: 'Graphite', hex: '#616161' },
+    { name: 'Blue', hex: '#039be5' }, { name: 'Lavender', hex: '#7986cb' }, { name: 'Sage', hex: '#33b679' },
+    { name: 'Grape', hex: '#8e24aa' }, { name: 'Flamingo', hex: '#e67c73' }, { name: 'Banana', hex: '#f6c026' },
+    { name: 'Tangerine', hex: '#f5511d' }, { name: 'Peacock', hex: '#009688' }, { name: 'Graphite', hex: '#616161' },
 ];
 
 const OnboardingPage = () => {
     const { createFamily, joinFamily } = useContext(FamilyContext);
-    const [view, setView] = useState('options'); // 'options', 'create', 'join'
+    const [view, setView] = useState('options'); // Controls which view is shown: 'options', 'create', or 'join'.
     const [familyName, setFamilyName] = useState('');
     const [inviteCode, setInviteCode] = useState('');
     const [userColor, setUserColor] = useState(GOOGLE_CALENDAR_COLORS[0].hex);
@@ -27,6 +27,7 @@ const OnboardingPage = () => {
         setError('');
         try {
             await createFamily(familyName, userColor);
+            // On success, the FamilyContext will update and the App's router will automatically navigate to the main app.
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to create family.');
         }
@@ -41,62 +42,78 @@ const OnboardingPage = () => {
             setError(err.response?.data?.message || 'Failed to join family. Check the code.');
         }
     };
-
-    // --- Reusable Color Picker Component ---
+    
+    /**
+     * A sub-component for picking a user color.
+     */
     const ColorPicker = () => (
-        <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700">Choose Your Color</label>
-            <div className="mt-2 flex flex-wrap gap-4">
+        <div style={{marginBottom: '1.5rem'}}>
+            <label style={{display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151'}}>Choose Your Color</label>
+            <div style={{marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem'}}>
                 {GOOGLE_CALENDAR_COLORS.map(color => (
-                    <button
-                        type="button" // Prevents form submission
-                        key={color.hex}
-                        onClick={() => setUserColor(color.hex)}
-                        className={`h-12 w-12 rounded-full border-2 transition-transform focus:outline-none ${userColor === color.hex ? 'border-blue-500 scale-110 ring-2 ring-offset-2 ring-blue-500' : 'border-transparent hover:scale-110'}`}
-                        style={{ backgroundColor: color.hex }}
-                        aria-label={`Select color ${color.name}`}
+                    <button 
+                        type="button" 
+                        key={color.hex} 
+                        onClick={() => setUserColor(color.hex)} 
+                        style={{
+                            height: '3rem', 
+                            width: '3rem', 
+                            borderRadius: '9999px', 
+                            border: `2px solid ${userColor === color.hex ? '#3B82F6' : 'transparent'}`,
+                            transform: `scale(${userColor === color.hex ? '1.1' : '1'})`,
+                            backgroundColor: color.hex
+                        }}
+                        aria-label={`Select color ${color.name}`} 
                     />
                 ))}
             </div>
         </div>
     );
-
+    
+    /**
+     * Renders the content based on the current `view` state.
+     */
     const renderContent = () => {
+        const formStyle = { display: 'flex', flexDirection: 'column' };
+        const inputStyle = { marginTop: '0.25rem', display: 'block', width: '100%', border: '1px solid #D1D5DB', padding: '0.5rem', borderRadius: '0.375rem' };
+        const buttonStyle = { width: '100%', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem' };
+        const backButtonStyle = { width: '100%', marginTop: '0.5rem', fontSize: '0.875rem', color: '#4B5563', textDecoration: 'underline' };
+
         switch (view) {
             case 'create':
                 return (
-                    <form onSubmit={handleCreateFamily}>
-                        <h2 className="text-2xl font-bold mb-4">Create Your Household</h2>
-                        <div className="mb-4">
-                            <label htmlFor="familyName" className="block text-sm font-medium text-gray-700">Household Name</label>
-                            <input type="text" id="familyName" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required className="mt-1 block w-full border p-2 rounded-md" placeholder="e.g., The Smith Family"/>
+                    <form onSubmit={handleCreateFamily} style={formStyle}>
+                        <h2 style={{fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem'}}>Create Your Household</h2>
+                        <div style={{marginBottom: '1rem'}}>
+                            <label htmlFor="familyName" style={{display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151'}}>Household Name</label>
+                            <input type="text" id="familyName" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required style={inputStyle} placeholder="e.g., The Smith Family"/>
                         </div>
                         <ColorPicker />
-                        <button type="submit" className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Create Household</button>
-                        <button type="button" onClick={() => setView('options')} className="w-full mt-2 text-sm text-gray-600 hover:underline">Back</button>
+                        <button type="submit" style={{...buttonStyle, backgroundColor: '#2563EB'}}>Create Household</button>
+                        <button type="button" onClick={() => setView('options')} style={backButtonStyle}>Back</button>
                     </form>
                 );
             case 'join':
                 return (
-                    <form onSubmit={handleJoinFamily}>
-                        <h2 className="text-2xl font-bold mb-4">Join a Household</h2>
-                        <div className="mb-4">
-                            <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700">Invite Code</label>
-                            <input type="text" id="inviteCode" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required className="mt-1 block w-full border p-2 rounded-md" placeholder="Enter 6-digit code"/>
+                    <form onSubmit={handleJoinFamily} style={formStyle}>
+                        <h2 style={{fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem'}}>Join a Household</h2>
+                        <div style={{marginBottom: '1rem'}}>
+                            <label htmlFor="inviteCode" style={{display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151'}}>Invite Code</label>
+                            <input type="text" id="inviteCode" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required style={inputStyle} placeholder="Enter 6-digit code"/>
                         </div>
                         <ColorPicker />
-                        <button type="submit" className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">Join Household</button>
-                        <button type="button" onClick={() => setView('options')} className="w-full mt-2 text-sm text-gray-600 hover:underline">Back</button>
+                        <button type="submit" style={{...buttonStyle, backgroundColor: '#16A34A'}}>Join Household</button>
+                        <button type="button" onClick={() => setView('options')} style={backButtonStyle}>Back</button>
                     </form>
                 );
-            default:
+            default: // 'options' view
                 return (
                     <div>
-                        <h2 className="text-2xl font-bold mb-6">Welcome to Family Hub!</h2>
-                        <p className="mb-6 text-gray-600">To get started, create a new household for your family or join one using an invite code.</p>
-                        <div className="space-y-4">
-                            <button onClick={() => setView('create')} className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 text-lg">Create a Household</button>
-                            <button onClick={() => setView('join')} className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 text-lg">Join a Household</button>
+                        <h2 style={{fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem'}}>Welcome to Family Hub!</h2>
+                        <p style={{marginBottom: '1.5rem', color: '#4B5563'}}>To get started, create a new household for your family or join one using an invite code.</p>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+                            <button onClick={() => setView('create')} style={{...buttonStyle, backgroundColor: '#2563EB', padding: '0.75rem 1rem', fontSize: '1.125rem'}}>Create a Household</button>
+                            <button onClick={() => setView('join')} style={{...buttonStyle, backgroundColor: '#16A34A', padding: '0.75rem 1rem', fontSize: '1.125rem'}}>Join a Household</button>
                         </div>
                     </div>
                 );
@@ -104,9 +121,9 @@ const OnboardingPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="max-w-md w-full bg-white shadow-lg rounded-xl p-8">
-                {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+        <div style={{minHeight: '100vh', backgroundColor: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <div style={{maxWidth: '28rem', width: '100%', backgroundColor: 'white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', borderRadius: '0.75rem', padding: '2rem'}}>
+                {error && <p style={{color: '#EF4444', textAlign: 'center', marginBottom: '1rem'}}>{error}</p>}
                 {renderContent()}
             </div>
         </div>

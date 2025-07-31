@@ -1,94 +1,28 @@
-import api from './api'; // Your centralized Axios instance
+import api from './api';
 
-const API_URL = '/lists';
+const API_URL_LIST = '/lists';
 
-// --- List Management ---
+const getLists = () => api.get(API_URL_LIST).then(res => res.data);
 
-/**
- * Fetches all lists.
- * ✨ FIX: It now awaits the response and returns `response.data` directly.
- */
-const getLists = async () => {
-  const response = await api.get(API_URL);
-  return response.data;
-};
+// Expects an object like { name: 'New List' }
+const createList = (data) => api.post(API_URL_LIST, data).then(res => res.data);
 
-/**
- * Creates a new list.
- * ✨ FIX: It now awaits the response and returns the new list object from `response.data`.
- */
-const createList = async (listData) => {
-  // The backend expects an object with a 'name' property.
-  const response = await api.post(API_URL, listData);
-  return response.data;
-};
+const deleteList = (id) => api.delete(`${API_URL_LIST}/${id}`).then(res => res.data);
 
-/**
- * Updates an existing list's name.
- * ✨ FIX: It now awaits the response and returns the updated list from `response.data`.
- */
-const updateList = async (id, listName) => {
-  const response = await api.put(`${API_URL}/${id}`, { name: listName });
-  return response.data;
-};
+// Expects a simple string for content
+const addItemToList = (listId, content) => api.post(`${API_URL_LIST}/${listId}/items`, { content }).then(res => res.data);
 
-/**
- * Deletes a list.
- * ✨ FIX: It now awaits the response and returns the confirmation message from `response.data`.
- */
-const deleteList = async (id) => {
-  const response = await api.delete(`${API_URL}/${id}`);
-  return response.data;
-};
+const toggleListItemCompletion = (listId, itemId) => api.patch(`${API_URL_LIST}/${listId}/items/${itemId}/toggle`).then(res => res.data);
 
-// --- List Item Management ---
+const deleteListItem = (listId, itemId) => api.delete(`${API_URL_LIST}/${listId}/items/${itemId}`).then(res => res.data);
 
-/**
- * Adds an item to a specific list.
- * ✨ FIX: It now awaits the response and returns the entire updated list from `response.data`.
- */
-const addItemToList = async (listId, itemContent) => {
-  const response = await api.post(`${API_URL}/${listId}/items`, { content: itemContent });
-  return response.data;
-};
-
-/**
- * Updates an item within a list.
- * ✨ FIX: It now awaits the response and returns the entire updated list from `response.data`.
- */
-const updateListItem = async (listId, itemId, itemContent) => {
-  const response = await api.put(`${API_URL}/${listId}/items/${itemId}`, { content: itemContent });
-  return response.data;
-};
-
-/**
- * Deletes an item from a list.
- * ✨ FIX: It now awaits the response and returns the confirmation message from `response.data`.
- */
-const deleteListItem = async (listId, itemId) => {
-  const response = await api.delete(`${API_URL}/${listId}/items/${itemId}`);
-  return response.data;
-};
-
-/**
- * Toggles an item's completion status.
- * ✨ FIX: It now awaits the response and returns the entire updated list from `response.data`.
- */
-const toggleListItemCompletion = async (listId, itemId) => {
-  const response = await api.patch(`${API_URL}/${listId}/items/${itemId}/toggle`);
-  return response.data;
-};
-
-
-const ListService = {
-  getLists,
-  createList,
-  updateList,
-  deleteList,
-  addItemToList,
-  updateListItem,
-  deleteListItem,
-  toggleListItemCompletion,
+const ListService = { 
+  getLists, 
+  createList, 
+  deleteList, 
+  addItemToList, 
+  toggleListItemCompletion, 
+  deleteListItem 
 };
 
 export default ListService;

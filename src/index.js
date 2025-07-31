@@ -1,15 +1,18 @@
+// ===================================================================================
+// File: /src/index.js
+// Purpose: This is the main entry point for the React application. It finds the 'root'
+// HTML element and renders the main App component into it. React.StrictMode is used
+// to highlight potential problems in the application during development.
+// ===================================================================================
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-// The import for index.css has been removed to prevent errors if the file doesn't exist.
-// You can add it back later if you create a src/index.css file.
+import './index.css'; // Assuming a base CSS file for global styles like fonts
 import App from './App';
 
-// This is the main entry point of your React application.
-// It finds the 'root' div in your public/index.html file.
+// Create a root for the React application, targeting the div with id 'root' in index.html.
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-// It renders your main App component, wrapping it in StrictMode
-// to highlight potential problems in the application.
+// Render the main App component within React's Strict Mode.
 root.render(
   <React.StrictMode>
     <App />

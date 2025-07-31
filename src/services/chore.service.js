@@ -1,39 +1,18 @@
-import api from './api'; // Your centralized Axios instance
+import api from './api';
+const API_URL_CHORE = '/chores';
 
-const API_URL = '/chores';
-
-// Fetch all chores for the family
 const getChores = () => {
-  return api.get(API_URL);
+  console.log('[Chore Service] Fetching chores from API...');
+  return api.get(API_URL_CHORE).then(res => {
+    console.log('[Chore Service] API Response Data:', res.data);
+    return res.data;
+  });
 };
 
-// Create a new chore
-const createChore = (choreData) => {
-  return api.post(API_URL, choreData);
-};
+const createChore = (data) => api.post(API_URL_CHORE, data).then(res => res.data);
+const updateChore = (id, data) => api.put(`${API_URL_CHORE}/${id}`, data).then(res => res.data);
+const deleteChore = (id) => api.delete(`${API_URL_CHORE}/${id}`).then(res => res.data);
+const toggleChoreCompletion = (id) => api.patch(`${API_URL_CHORE}/${id}/toggle`).then(res => res.data);
 
-// Update an existing chore by its ID
-const updateChore = (id, choreData) => {
-  return api.put(`${API_URL}/${id}`, choreData);
-};
-
-// Delete a chore by its ID
-const deleteChore = (id) => {
-  return api.delete(`${API_URL}/${id}`);
-};
-
-// Toggle a chore's completion status
-const toggleChoreCompletion = (id) => {
-  return api.patch(`${API_URL}/${id}/toggle`);
-};
-
-
-const ChoreService = {
-  getChores,
-  createChore,
-  updateChore,
-  deleteChore,
-  toggleChoreCompletion,
-};
-
+const ChoreService = { getChores, createChore, updateChore, deleteChore, toggleChoreCompletion };
 export default ChoreService;

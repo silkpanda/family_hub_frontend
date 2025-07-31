@@ -1,35 +1,18 @@
-// Purpose: This file acts as the dedicated API layer for the calendar feature.
-// It abstracts all `axios` calls, so components don't need to know about API endpoints.
 // ===================================================================================
-import api from './api'; // The centralized Axios instance
+// File: /src/services/calendar.service.js
+// Purpose: Encapsulates all API calls related to the calendar feature. Each function
+// corresponds to a specific backend endpoint for calendar events. This keeps the
+// API logic separate from the UI components and context.
+// ===================================================================================
+import api from './api';
 
-const API_URL = '/calendar/events';
+const API_URL_CAL = '/calendar/events';
 
-// Fetch all events for the family
-const getEvents = () => {
-  return api.get(API_URL);
-};
+// Each function returns the `data` from the Axios response.
+const getEvents = () => api.get(API_URL_CAL).then(res => res.data);
+const createEvent = (data) => api.post(API_URL_CAL, data).then(res => res.data);
+const updateEvent = (id, data) => api.put(`${API_URL_CAL}/${id}`, data).then(res => res.data);
+const deleteEvent = (id) => api.delete(`${API_URL_CAL}/${id}`).then(res => res.data);
 
-// Create a new event
-const createEvent = (eventData) => {
-  return api.post(API_URL, eventData);
-};
-
-// Update an existing event by its ID
-const updateEvent = (id, eventData) => {
-  return api.put(`${API_URL}/${id}`, eventData);
-};
-
-// Delete an event by its ID
-const deleteEvent = (id) => {
-  return api.delete(`${API_URL}/${id}`);
-};
-
-const CalendarService = {
-  getEvents,
-  createEvent,
-  updateEvent,
-  deleteEvent,
-};
-
+const CalendarService = { getEvents, createEvent, updateEvent, deleteEvent };
 export default CalendarService;

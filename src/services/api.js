@@ -1,32 +1,40 @@
+// ===================================================================================
+// File: /src/services/api.js
+// Purpose: Configures and exports a centralized Axios instance for making API calls.
+// It sets the base URL for all requests and includes interceptors to automatically
+// attach the JWT authentication token to headers and to handle 401 Unauthorized errors
+// by triggering a global logout.
+// ===================================================================================
 import axios from 'axios';
-import { authService } from './auth.service'; // Import our new event service
+import { authService } from './auth.service';
 
+// Create an Axios instance with a base URL from environment variables.
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001/api'
 });
 
-// Request interceptor to add the auth token to every request
+// Request interceptor: This function runs before any request is sent.
 api.interceptors.request.use(
   (config) => {
+    // Get the auth token from localStorage.
     const token = localStorage.getItem('authToken');
     if (token) {
+      // If a token exists, add it to the Authorization header.
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// --- NEW: Response Interceptor ---
-// This watches for responses and handles global errors.
+// Response interceptor: This function runs on every response from the API.
 api.interceptors.response.use(
-  (response) => response, // If the response is successful, just pass it through
+  (response) => response, // If the response is successful (2xx), just pass it through.
   (error) => {
-    // If the response is a 401 Unauthorized error
+    // If the error response has a status of 401 (Unauthorized), it means the
+    // token is invalid or expired.
     if (error.response && error.response.status === 401) {
-      // Trigger our global logout event.
+      // Trigger a global logout event. The AuthContext listens for this event.
       authService.triggerLogout();
     }
     return Promise.reject(error);

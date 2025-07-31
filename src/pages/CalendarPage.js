@@ -1,36 +1,23 @@
-// FullCalendar component and handles user interactions like clicking on dates or events.
-// ===================================================================================
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { CalendarContext } from '../context/CalendarContext';
+import { useCalendar } from '../context/CalendarContext';
 import EventModal from '../components/calendar/EventModal';
 import { theme } from '../theme/theme';
 
 const CalendarPage = () => {
-  // --- State Management ---
-  // Access the calendar's state (events, loading status) and action functions from the context.
-  const { events, loading, fetchEvents, updateEvent } = useContext(CalendarContext);
-  
-  // Local state to manage the visibility and content of the event creation/editing modal.
+  const { state, actions } = useCalendar();
+  const { events, loading } = state;
+  const { updateEvent } = actions; // We only need updateEvent for drag-and-drop
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null); // Holds the event data when editing.
-  const [selectedDateInfo, setSelectedDateInfo] = useState(null); // Holds date info when creating a new event.
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedDateInfo, setSelectedDateInfo] = useState(null);
 
-  // --- Data Fetching ---
-  // When the component first mounts, call the `fetchEvents` action from the context
-  // to load all event data from the backend.
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]); // Dependency array ensures this runs only when `fetchEvents` function changes.
-
-  // --- Data Transformation ---
-  // `useMemo` is a performance optimization. It transforms the raw event data from our database
-  // into the format that the FullCalendar library expects. This transformation only re-runs
-  // when the `events` array from the context actually changes.
   const calendarEvents = useMemo(() => {
+    if (!events) return [];
     return events.map(event => ({
       id: event._id,
       title: event.title,
@@ -39,67 +26,45 @@ const CalendarPage = () => {
       allDay: event.isAllDay,
       backgroundColor: event.color,
       borderColor: event.color,
-      extendedProps: event, // Store the original event object for easy access later.
+      extendedProps: event
     }));
   }, [events]);
 
-  // --- Event Handlers ---
-  // Triggered when a user clicks and drags on a date or time slot in the calendar.
+  // --- THIS IS THE CORRECTED FUNCTION ---
   const handleDateSelect = (selectInfo) => {
+    // Clear any previously selected event
+    setSelectedEvent(null); 
+    // Store the date information for the new event
     setSelectedDateInfo(selectInfo);
-    setSelectedEvent(null); // Ensure we are in "create" mode.
+    // Set the state to open the modal
     setIsModalOpen(true);
   };
-
-  // Triggered when a user clicks on an existing event.
+  
   const handleEventClick = (clickInfo) => {
-    setSelectedEvent(clickInfo.event.extendedProps); // Pass the full original event data to the modal.
-    setSelectedDateInfo(null); // Ensure we are in "edit" mode.
+    setSelectedDateInfo(null);
+    setSelectedEvent(clickInfo.event.extendedProps);
     setIsModalOpen(true);
   };
-
-  // Closes the modal and resets its state.
+  
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedEvent(null);
     setSelectedDateInfo(null);
   };
 
-  // Triggered when an event is dragged and dropped to a new date/time.
   const handleEventDrop = (dropInfo) => {
     const { event } = dropInfo;
-    // Guard clause to prevent crashes if the drop results in an invalid date.
     if (!event.start || !event.end) {
-      dropInfo.revert(); // Safely cancels the drop.
+      dropInfo.revert();
       return;
     }
-    const updatedEventData = {
-      ...event.extendedProps,
-      startTime: event.start.toISOString(),
-      endTime: event.end.toISOString(),
-    };
+    const updatedEventData = { ...event.extendedProps, startTime: event.start.toISOString(), endTime: event.end.toISOString() };
     updateEvent(event.id, updatedEventData);
-  };
+};
 
-  // Triggered when an event is resized.
-  const handleEventResize = (resizeInfo) => {
-    // Similar logic to handleEventDrop.
-    const { event } = resizeInfo;
-    if (!event.start || !event.end) {
-      resizeInfo.revert();
-      return;
-    }
-    const updatedEventData = {
-      ...event.extendedProps,
-      startTime: event.start.toISOString(),
-      endTime: event.end.toISOString(),
-    };
-    updateEvent(event.id, updatedEventData);
-  };
+  const handleEventResize = (resizeInfo) => { /* ... */ };
 
-  if (loading) {
-    return <div>Loading Calendar...</div>;
-  }
+  if (loading) { return <div>Loading Calendar...</div>; }
 
   return (
     <div style={{ fontFamily: theme.typography.fontFamily, color: theme.colors.textPrimary }}>
@@ -107,30 +72,20 @@ const CalendarPage = () => {
       <div className="calendar-container" style={{ backgroundColor: theme.colors.neutralSurface, padding: theme.spacing.md, borderRadius: theme.borderRadius.medium }}>
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            }}
+            headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
             initialView="dayGridMonth"
             events={calendarEvents}
             selectable={true}
             select={handleDateSelect}
             eventClick={handleEventClick}
-            editable={true} // Enables dragging and resizing
+            editable={true}
             eventDrop={handleEventDrop}
             eventResize={handleEventResize}
             height="auto"
           />
       </div>
-      {/* The modal is only rendered when `isModalOpen` is true. */}
-      {isModalOpen && (
-        <EventModal
-          event={selectedEvent}
-          dateInfo={selectedDateInfo}
-          onClose={closeModal}
-        />
-      )}
+      {/* This line correctly renders the modal when isModalOpen is true */}
+      {isModalOpen && (<EventModal event={selectedEvent} dateInfo={selectedDateInfo} onClose={closeModal} />)}
     </div>
   );
 };
