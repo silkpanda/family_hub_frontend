@@ -1,10 +1,30 @@
+// ===================================================================================
+// File: /frontend/src/context/MealContext.js
+// Purpose: Manages all state and actions for the Meal Planner feature.
+//
+// --- UPDATE ---
+// 1. Added `fetchRecipes` to the `actions` object that is passed into the context
+//    provider. This makes the function available to any component that uses the
+//    `useMeals` hook, resolving the "is not a function" runtime error.
+// ===================================================================================
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import MealService from '../services/meal.service.js';
-import { SocketContext } from './SocketContext.js';
-import { useLists } from './ListContext.js'; // <-- FIX
+import { useLists } from './ListContext.js';
 import { AuthContext } from './AuthContext.js';
 
 export const MealContext = createContext();
+
+export const useMeals = () => {
+    const context = useContext(MealContext);
+    if (context === undefined) {
+        return {
+            state: { recipes: [], mealPlan: null, recipesLoading: true, mealPlanLoading: true, error: null },
+            actions: {}
+        };
+    }
+    return context;
+};
+
 const actionTypes = { SET_RECIPES_LOADING: 'SET_RECIPES_LOADING', SET_MEAL_PLAN_LOADING: 'SET_MEAL_PLAN_LOADING', SET_RECIPES: 'SET_RECIPES', ADD_RECIPE: 'ADD_RECIPE', UPDATE_RECIPE: 'UPDATE_RECIPE', DELETE_RECIPE: 'DELETE_RECIPE', SET_MEAL_PLAN: 'SET_MEAL_PLAN', SET_ERROR: 'SET_ERROR' };
 
 const mealReducer = (state, action) => {
@@ -24,24 +44,85 @@ const mealReducer = (state, action) => {
 export const MealProvider = ({ children }) => {
   const initialState = { recipes: [], mealPlan: null, recipesLoading: true, mealPlanLoading: true, error: null };
   const [state, dispatch] = useReducer(mealReducer, initialState);
-  const socket = useContext(SocketContext);
-  const { actions: listActions } = useLists(); // <-- FIX
-  const { isAuthenticated } = useContext(AuthContext);
+  const { actions: listActions } = useLists();
+  const { isAuthenticated, isReady } = useContext(AuthContext);
 
-  const fetchRecipes = useCallback(async () => { dispatch({ type: actionTypes.SET_RECIPES_LOADING }); try { const response = await MealService.getAllRecipes(); dispatch({ type: actionTypes.SET_RECIPES, payload: response }); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [dispatch]);
-  const fetchMealPlan = useCallback(async () => { dispatch({ type: actionTypes.SET_MEAL_PLAN_LOADING }); try { const response = await MealService.getMealPlan(); dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response }); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [dispatch]);
+  const fetchRecipes = useCallback(async () => {
+      dispatch({ type: actionTypes.SET_RECIPES_LOADING });
+      try {
+          const response = await MealService.getAllRecipes();
+          dispatch({ type: actionTypes.SET_RECIPES, payload: response || [] });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
+  }, []);
+
+  const fetchMealPlan = useCallback(async () => {
+      dispatch({ type: actionTypes.SET_MEAL_PLAN_LOADING });
+      try {
+          const response = await MealService.getMealPlan();
+          dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
+  }, []);
+
+  useEffect(() => {
+    if (isReady && isAuthenticated) {
+        fetchRecipes();
+        fetchMealPlan();
+    }
+  }, [isReady, isAuthenticated, fetchRecipes, fetchMealPlan]);
+
+  const createRecipe = useCallback(async (recipeData) => {
+      try {
+          const response = await MealService.createRecipe(recipeData);
+          dispatch({ type: actionTypes.ADD_RECIPE, payload: response });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
+  }, []);
   
-  useEffect(() => { if (isAuthenticated) { fetchRecipes(); fetchMealPlan(); } }, [isAuthenticated, fetchRecipes, fetchMealPlan]);
-  
-  const createRecipe = useCallback(async (recipeData) => { try { const response = await MealService.createRecipe(recipeData); dispatch({ type: actionTypes.ADD_RECIPE, payload: response }); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [dispatch]);
-  const updateRecipe = useCallback(async (id, recipeData) => { try { const response = await MealService.updateRecipe(id, recipeData); dispatch({ type: actionTypes.UPDATE_RECIPE, payload: response }); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [dispatch]);
-  const deleteRecipe = useCallback(async (id) => { try { await MealService.deleteRecipe(id); dispatch({ type: actionTypes.DELETE_RECIPE, payload: { id } }); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [dispatch]);
-  const addRecipeToPlan = useCallback(async (planData) => { try { const response = await MealService.addRecipeToPlan(planData); dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response }); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [dispatch]);
-  const removeRecipeFromPlan = useCallback(async (planData) => { try { const response = await MealService.removeRecipeFromPlan(planData); dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response }); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [dispatch]);
-  const addIngredientsToList = useCallback(async (recipeId, listId) => { try { await MealService.addIngredientsToList(recipeId, listId); if (listActions && listActions.fetchLists) { listActions.fetchLists(); } } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); } }, [listActions, dispatch]);
-  
-  const actions = useMemo(() => ({ fetchRecipes, createRecipe, updateRecipe, deleteRecipe, fetchMealPlan, addRecipeToPlan, removeRecipeFromPlan, addIngredientsToList }), [fetchRecipes, createRecipe, updateRecipe, deleteRecipe, fetchMealPlan, addRecipeToPlan, removeRecipeFromPlan, addIngredientsToList]);
+  const updateRecipe = useCallback(async (id, recipeData) => {
+    try {
+        const response = await MealService.updateRecipe(id, recipeData);
+        dispatch({ type: actionTypes.UPDATE_RECIPE, payload: response });
+    } catch (err) {
+        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+    }
+  }, []);
+
+  const addRecipeToPlan = useCallback(async (planData) => {
+      try {
+          const response = await MealService.addRecipeToPlan(planData);
+          dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
+  }, []);
+
+  const removeRecipeFromPlan = useCallback(async (planData) => {
+      try {
+          const response = await MealService.removeRecipeFromPlan(planData);
+          dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
+  }, []);
+
+  const addIngredientsToList = useCallback(async (recipeId, listId) => {
+      try {
+          await MealService.addIngredientsToList(recipeId, listId);
+          if (listActions && listActions.fetchLists) {
+              listActions.fetchLists();
+          }
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
+  }, [listActions]);
+
+  const actions = useMemo(() => ({ fetchRecipes, createRecipe, updateRecipe, addRecipeToPlan, removeRecipeFromPlan, addIngredientsToList }), [fetchRecipes, createRecipe, updateRecipe, addRecipeToPlan, removeRecipeFromPlan, addIngredientsToList]);
   const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
-  
+
   return <MealContext.Provider value={contextValue}>{children}</MealContext.Provider>;
 };

@@ -1,8 +1,10 @@
 // ===================================================================================
-// File: /src/components/layout/Sidebar.js
-// Purpose: Provides the main navigation for the application. It's a persistent
-// component displayed on the left side of the screen for authenticated users.
-// It uses NavLink from react-router-dom to highlight the active page.
+// File: /frontend/src/components/layout/Sidebar.js
+// Purpose: The main navigation sidebar for the application.
+//
+// --- UPDATE ---
+// 1. The "Dashboard" NavLink now points to the root route ("/").
+// 2. The "Calendar" NavLink now points to the new "/calendar" route.
 // ===================================================================================
 import React, { useContext } from 'react';
 import { NavLink } from 'react-router-dom';
@@ -10,11 +12,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { theme } from '../../theme/theme';
 import Button from '../shared/Button';
 
-/**
- * The main sidebar navigation component.
- */
 const Sidebar = () => {
-    // Get the logout function from the AuthContext to log the user out.
     const { logout } = useContext(AuthContext);
 
     const sidebarStyle = {
@@ -45,7 +43,6 @@ const Sidebar = () => {
         fontWeight: '500',
     };
     
-    // Style applied to the NavLink for the currently active route.
     const activeLinkStyle = {
         backgroundColor: theme.colors.accentAction,
         color: theme.colors.textPrimary,
@@ -55,8 +52,8 @@ const Sidebar = () => {
         <div style={sidebarStyle}>
             <h1 style={logoStyle}>Family Hub</h1>
             <nav style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                {/* NavLink's `style` prop can be a function to apply styles conditionally. */}
-                <NavLink to="/" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Calendar</NavLink>
+                <NavLink end to="/" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Dashboard</NavLink>
+                <NavLink to="/calendar" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Calendar</NavLink>
                 <NavLink to="/lists" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Lists</NavLink>
                 <NavLink to="/chores" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Chores</NavLink>
                 <NavLink to="/meals" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Meal Planner</NavLink>
@@ -66,5 +63,4 @@ const Sidebar = () => {
         </div>
     );
 };
-
 export default Sidebar;
