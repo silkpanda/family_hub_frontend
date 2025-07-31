@@ -1,8 +1,17 @@
 // ===================================================================================
 // File: /frontend/src/pages/UserProfilePage.js
 // Purpose: Displays a detailed profile for a single family member.
+//
+// --- Dev Notes (UPDATE) ---
+// - BUG FIX: Interacting with the list modal did not update the UI in real-time.
+// - SOLUTION:
+//   - The `selectedList` state now stores only the ID of the list, not the entire object.
+//   - During each render, the component finds the most up-to-date version of the
+//     selected list from the global context (`listState`).
+//   - This fresh list object is then passed to the modal, ensuring that any changes
+//     (like checking off an item) are immediately reflected.
 // ===================================================================================
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { useCalendar } from '../context/CalendarContext';
@@ -10,35 +19,49 @@ import { useLists } from '../context/ListContext';
 import { useChores } from '../context/ChoreContext';
 import { theme } from '../theme/theme';
 import Card from '../components/shared/Card';
+import InteractiveListModal from '../components/profile/InteractiveListModal';
 
 const UserProfilePage = () => {
     const { memberId } = useParams();
     const { state: familyState } = useFamily();
     const { state: calendarState } = useCalendar();
     const { state: listState } = useLists();
-    const { state: choreState } = useChores();
+    const { state: choreState, actions: choreActions } = useChores();
+    const [selectedListId, setSelectedListId] = useState(null); // --- UPDATED ---
 
     const member = familyState.family?.members.find(m => m.userId._id === memberId);
     const today = new Date();
 
-    // Filter data specific to this member for today
+    // Filter data specific to this member
     const dailyEvents = calendarState.events.filter(event => {
         const eventStart = new Date(event.startTime);
         return event.assignedTo.some(a => a._id === memberId) &&
                today.toDateString() === eventStart.toDateString();
     });
 
-    const assignedLists = listState.lists.map(list => ({
-        ...list,
-        items: list.items.filter(item => item.createdBy._id === memberId)
-    })).filter(list => list.items.length > 0);
+    const assignedLists = listState.lists.filter(list =>
+        list.assignedTo.some(assignee => assignee._id === memberId)
+    );
 
     const assignedChores = choreState.chores.filter(chore => chore.assignedTo?._id === memberId);
-    const totalPoints = assignedChores.filter(c => c.isComplete).reduce((acc, chore) => acc + chore.points, 0);
+    const totalPoints = choreActions.calculateUserPoints(memberId);
+
+    // --- NEW --- Find the fresh list object on every render
+    const listForModal = selectedListId ? listState.lists.find(l => l._id === selectedListId) : null;
 
     if (!member) {
         return <div>Member not found.</div>;
     }
+
+    const listNameStyle = {
+        ...theme.typography.body,
+        fontWeight: '600',
+        padding: theme.spacing.sm,
+        borderRadius: theme.borderRadius.medium,
+        cursor: 'pointer',
+        transition: 'background-color 0.2s ease',
+        backgroundColor: theme.colors.neutralBackground
+    };
 
     return (
         <div style={{ fontFamily: theme.typography.fontFamily }}>
@@ -67,15 +90,19 @@ const UserProfilePage = () => {
                     )) : <p>No chores assigned.</p>}
                 </Card>
                 <Card>
-                    <h2 style={theme.typography.h3}>List Items</h2>
-                    {assignedLists.length > 0 ? assignedLists.map(list => (
-                        <div key={list._id}>
-                            <strong>{list.name}:</strong>
-                            <ul>{list.items.map(item => <li key={item._id}>{item.content}</li>)}</ul>
-                        </div>
-                    )) : <p>No list items assigned.</p>}
+                    <h2 style={theme.typography.h3}>Assigned Lists</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm, marginTop: theme.spacing.md }}>
+                        {assignedLists.length > 0 ? assignedLists.map(list => (
+                            <div key={list._id} style={listNameStyle} onClick={() => setSelectedListId(list._id)}>
+                                {list.name}
+                            </div>
+                        )) : <p>No lists assigned.</p>}
+                    </div>
                 </Card>
             </div>
+
+            {/* --- UPDATED --- Render the modal with the fresh list object */}
+            {listForModal && <InteractiveListModal list={listForModal} onClose={() => setSelectedListId(null)} />}
         </div>
     );
 };
