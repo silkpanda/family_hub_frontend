@@ -1,10 +1,14 @@
 // ===================================================================================
 // File: /frontend/src/context/ChoreContext.js
 // Purpose: Manages all state and actions for the Chores feature.
+//
+// --- UPDATE ---
+// 1. Added a `calculateUserPoints` function to the exported actions.
+// 2. This function allows other components to get the total points for a specific user.
 // ===================================================================================
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import ChoreService from '../services/chore.service.js';
-import { socket } from './SocketContext.js'; // Ensure socket is imported
+import { socket } from './SocketContext.js';
 import { AuthContext } from './AuthContext.js';
 
 const ChoreContext = createContext();
@@ -23,8 +27,6 @@ export const useChores = () => {
 const actionTypes = { SET_LOADING: 'SET_LOADING', SET_CHORES: 'SET_CHORES', ADD_CHORE: 'ADD_CHORE', UPDATE_CHORE: 'UPDATE_CHORE', DELETE_CHORE: 'DELETE_CHORE', SET_ERROR: 'SET_ERROR' };
 
 const choreReducer = (state, action) => {
-  // CRUCIAL LOG: See what actions the reducer is receiving from socket events
-  console.log(`[ChoreContext] Reducer received action: ${action.type}, payload:`, action.payload);
   switch (action.type) {
     case actionTypes.SET_LOADING: return { ...state, loading: true };
     case actionTypes.SET_CHORES: return { ...state, loading: false, chores: action.payload, error: null };
@@ -41,99 +43,54 @@ export const ChoreProvider = ({ children }) => {
   const [state, dispatch] = useReducer(choreReducer, initialState);
   const { isAuthenticated, isReady } = useContext(AuthContext);
 
-  // This useEffect sets up the socket listeners for chore events.
   useEffect(() => {
     if (socket) {
-      console.log('[ChoreContext] Setting up Socket.IO listeners for chores.');
-
-      // Listener for a new chore being created
-      socket.on('chore:created', (newChore) => {
-        console.log('[ChoreContext] Received "chore:created" event:', newChore.title);
-        dispatch({ type: actionTypes.ADD_CHORE, payload: newChore });
-      });
-
-      // Listener for an existing chore being updated (e.g., toggled completion)
-      socket.on('chore:updated', (updatedChore) => {
-        console.log('[ChoreContext] Received "chore:updated" event:', updatedChore.title, 'Complete:', updatedChore.isComplete);
-        dispatch({ type: actionTypes.UPDATE_CHORE, payload: updatedChore });
-      });
-
-      // Listener for a chore being deleted
-      socket.on('chore:deleted', (data) => {
-        console.log('[ChoreContext] Received "chore:deleted" event for ID:', data.id);
-        dispatch({ type: actionTypes.DELETE_CHORE, payload: data });
-      });
-
-      // Cleanup function to remove listeners when component unmounts or effect re-runs
+      socket.on('chore:created', (newChore) => dispatch({ type: actionTypes.ADD_CHORE, payload: newChore }));
+      socket.on('chore:updated', (updatedChore) => dispatch({ type: actionTypes.UPDATE_CHORE, payload: updatedChore }));
+      socket.on('chore:deleted', (data) => dispatch({ type: actionTypes.DELETE_CHORE, payload: data }));
       return () => {
-        console.log('[ChoreContext] Cleaning up Socket.IO listeners for chores.');
         socket.off('chore:created');
         socket.off('chore:updated');
         socket.off('chore:deleted');
       };
-    } else {
-      console.log('[ChoreContext] Socket.IO instance not available.');
     }
-  }, []); // Empty dependency array means this runs once on mount and cleans up on unmount
+  }, []);
 
   const fetchChores = useCallback(async () => {
     dispatch({ type: actionTypes.SET_LOADING });
     try {
       const response = await ChoreService.getChores();
-      console.log('[ChoreContext] Fetched chores from API:', response.length, 'chores.');
       dispatch({ type: actionTypes.SET_CHORES, payload: response || [] });
     } catch (err) {
-      console.error('[ChoreContext] Error fetching chores:', err.message);
       dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
     }
   }, []);
   
-  // Fetch chores initially when authenticated state is ready
   useEffect(() => {
-    console.log(`[ChoreContext] useEffect - isAuthenticated: ${isAuthenticated}, isReady: ${isReady}`);
     if (isReady && isAuthenticated) {
         fetchChores();
     }
   }, [isReady, isAuthenticated, fetchChores]);
 
   const createChore = useCallback(async (choreData) => {
-    try { 
-      const response = await ChoreService.createChore(choreData); 
-      console.log('[ChoreContext] API Call: createChore successful. (Socket should handle update)');
-      // No dispatch here, as the socket event 'chore:created' will trigger ADD_CHORE
-      return response; // Return data if needed by calling component
-    } catch(err) { 
-      console.error('[ChoreContext] API Call: createChore failed:', err.message);
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); 
-      throw err; // Re-throw to allow component to handle
-    }
+    try { await ChoreService.createChore(choreData); } catch(err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
   }, []);
 
   const deleteChore = useCallback(async (id) => {
-    try { 
-      await ChoreService.deleteChore(id); 
-      console.log(`[ChoreContext] API Call: deleteChore ${id} successful. (Socket should handle update)`);
-      // No dispatch here, as the socket event 'chore:deleted' will trigger DELETE_CHORE
-    } catch(err) { 
-      console.error('[ChoreContext] API Call: deleteChore failed:', err.message);
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); 
-      throw err;
-    }
+    try { await ChoreService.deleteChore(id); } catch(err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
   }, []);
 
   const toggleChoreCompletion = useCallback(async (id) => {
-    try { 
-      await ChoreService.toggleChoreCompletion(id); 
-      console.log(`[ChoreContext] API Call: toggleChoreCompletion ${id} successful. (Socket should handle update)`);
-      // No dispatch here, as the socket event 'chore:updated' will trigger UPDATE_CHORE
-    } catch(err) { 
-      console.error('[ChoreContext] API Call: toggleChoreCompletion failed:', err.message);
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); 
-      throw err;
-    }
+    try { await ChoreService.toggleChoreCompletion(id); } catch(err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
   }, []);
   
-  const actions = useMemo(() => ({ createChore, deleteChore, toggleChoreCompletion }), [createChore, deleteChore, toggleChoreCompletion]);
+  const calculateUserPoints = useCallback((userId) => {
+      return state.chores
+          .filter(chore => chore.assignedTo?._id === userId && chore.isComplete)
+          .reduce((total, chore) => total + chore.points, 0);
+  }, [state.chores]);
+
+  const actions = useMemo(() => ({ createChore, deleteChore, toggleChoreCompletion, calculateUserPoints }), [createChore, deleteChore, toggleChoreCompletion, calculateUserPoints]);
   const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
   
   return <ChoreContext.Provider value={contextValue}>{children}</ChoreContext.Provider>;

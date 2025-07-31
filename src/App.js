@@ -3,9 +3,8 @@
 // Purpose: The main application component.
 //
 // --- UPDATE ---
-// 1. The root route ("/") now renders the DashboardPage, making it the default screen.
-// 2. A new route ("/calendar") has been created for the CalendarPage.
-// 3. The catch-all route now correctly navigates to the root ("/") dashboard.
+// 1. Imported the new UserProfilePage component.
+// 2. Added a new dynamic route for `/profile/:memberId`.
 // ===================================================================================
 import React, { useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -30,6 +29,7 @@ import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import OnboardingPage from './pages/OnboardingPage';
 import ManageFamilyPage from './pages/ManageFamilyPage';
+import UserProfilePage from './pages/UserProfilePage'; // --- NEW ---
 import Sidebar from './components/layout/Sidebar';
 
 const AppLayout = ({ children }) => {
@@ -63,13 +63,14 @@ const AuthenticatedRoutes = () => {
         return (
             <AppLayout>
                 <Routes>
-                    <Route path="/" element={<DashboardPage />} /> {/* --- UPDATED --- */}
-                    <Route path="/calendar" element={<CalendarPage />} /> {/* --- UPDATED --- */}
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/lists" element={<ListsPage />} />
                     <Route path="/chores" element={<ChoresPage />} />
                     <Route path="/meals" element={<MealPlannerPage />} />
                     <Route path="/family" element={<ManageFamilyPage />} />
-                    <Route path="*" element={<Navigate to="/" />} /> {/* --- UPDATED --- */}
+                    <Route path="/profile/:memberId" element={<UserProfilePage />} /> {/* --- NEW --- */}
+                    <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
             </AppLayout>
         );

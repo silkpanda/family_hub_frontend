@@ -1,8 +1,14 @@
 // ===================================================================================
 // File: /frontend/src/components/dashboard/FamilyCalendarView.js
 // Purpose: Displays a horizontally scrollable view of each family member's daily schedule.
+//
+// --- UPDATE ---
+// 1. Wrapped the MemberColumn in a Link from react-router-dom.
+// 2. The entire column is now a clickable element that navigates to the
+//    corresponding member's profile page.
 // ===================================================================================
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { theme } from '../../theme/theme';
 import Card from '../shared/Card';
 
@@ -12,10 +18,12 @@ const MemberColumn = ({ member, events }) => {
     );
 
     const columnStyle = {
-        flex: '0 0 300px', // Prevents shrinking, sets a base width
+        flex: '0 0 300px',
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing.md,
+        textDecoration: 'none', // Remove underline from link
+        color: 'inherit'
     };
     const headerStyle = {
         display: 'flex',
@@ -46,7 +54,7 @@ const MemberColumn = ({ member, events }) => {
     const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
     return (
-        <div style={columnStyle}>
+        <Link to={`/profile/${member.userId._id}`} style={columnStyle}>
             <div style={headerStyle}>
                 <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: member.color }}></div>
                 <h3 style={nameStyle}>{member.userId.displayName}</h3>
@@ -63,7 +71,7 @@ const MemberColumn = ({ member, events }) => {
                     <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary, textAlign: 'center', paddingTop: theme.spacing.lg }}>No events scheduled.</p>
                 )}
             </div>
-        </div>
+        </Link>
     );
 };
 
@@ -71,9 +79,9 @@ const FamilyCalendarView = ({ events, members }) => {
     const containerStyle = {
         display: 'flex',
         gap: theme.spacing.lg,
-        overflowX: 'auto', // Enables horizontal scrolling
+        overflowX: 'auto',
         padding: theme.spacing.sm,
-        paddingBottom: theme.spacing.md, // Space for the scrollbar
+        paddingBottom: theme.spacing.md,
     };
 
     return (
