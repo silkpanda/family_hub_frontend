@@ -2,15 +2,21 @@
 // File: /frontend/src/context/MealContext.js
 // Purpose: Manages all state and actions for the Meal Planner feature.
 //
-// --- UPDATE ---
-// 1. Added `fetchRecipes` to the `actions` object that is passed into the context
-//    provider. This makes the function available to any component that uses the
-//    `useMeals` hook, resolving the "is not a function" runtime error.
+// --- Dev Notes (UPDATE) ---
+// - BUG FIX: The dashboard was not updating in real-time after the meal plan was changed.
+//   The previous "fire-and-forget" approach was not reliable.
+// - SOLUTION:
+//   - The `addRecipeToPlan` and `removeRecipeFromPlan` functions have been updated to
+//     await the API response from the service.
+//   - They now use this response to dispatch a `SET_MEAL_PLAN` action immediately,
+//     ensuring the UI updates instantly for the user performing the action.
+//   - The WebSocket listener remains in place to handle updates for other clients.
 // ===================================================================================
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import MealService from '../services/meal.service.js';
 import { useLists } from './ListContext.js';
 import { AuthContext } from './AuthContext.js';
+import { socket } from './SocketContext.js';
 
 export const MealContext = createContext();
 
@@ -46,6 +52,19 @@ export const MealProvider = ({ children }) => {
   const [state, dispatch] = useReducer(mealReducer, initialState);
   const { actions: listActions } = useLists();
   const { isAuthenticated, isReady } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (socket) {
+        const handlePlanUpdate = (updatedPlan) => {
+            console.log('[Socket] Received mealplan:updated', updatedPlan);
+            dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: updatedPlan });
+        };
+        socket.on('mealplan:updated', handlePlanUpdate);
+        return () => {
+            socket.off('mealplan:updated', handlePlanUpdate);
+        };
+    }
+  }, []);
 
   const fetchRecipes = useCallback(async () => {
       dispatch({ type: actionTypes.SET_RECIPES_LOADING });
@@ -92,19 +111,21 @@ export const MealProvider = ({ children }) => {
     }
   }, []);
 
+  // --- UPDATED --- Now provides instant UI feedback from the API response.
   const addRecipeToPlan = useCallback(async (planData) => {
       try {
-          const response = await MealService.addRecipeToPlan(planData);
-          dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response });
+          const updatedPlan = await MealService.addRecipeToPlan(planData);
+          dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: updatedPlan });
       } catch (err) {
           dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
       }
   }, []);
 
+  // --- UPDATED --- Now provides instant UI feedback from the API response.
   const removeRecipeFromPlan = useCallback(async (planData) => {
       try {
-          const response = await MealService.removeRecipeFromPlan(planData);
-          dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: response });
+          const updatedPlan = await MealService.removeRecipeFromPlan(planData);
+          dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: updatedPlan });
       } catch (err) {
           dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
       }

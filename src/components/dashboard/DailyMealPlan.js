@@ -1,6 +1,15 @@
 // ===================================================================================
 // File: /frontend/src/components/dashboard/DailyMealPlan.js
 // Purpose: A stylized component to display the meals for the current day.
+//
+// --- Dev Notes (UPDATE) ---
+// - BUG FIX: The component was always displaying "Not Planned" because it was
+//   incorrectly trying to look up recipe details that were already present.
+// - SOLUTION: The `findRecipeForMeal` function has been simplified. The `mealPlan`
+//   object from the context already contains the fully populated recipe object, so
+//   we can now use it directly instead of searching the `allRecipes` array.
+// - DEBUGGING: Added a console.log to show the props being received by this
+//   component to aid in any future debugging.
 // ===================================================================================
 import React from 'react';
 import { theme } from '../../theme/theme';
@@ -44,10 +53,15 @@ const MealCard = ({ mealType, recipe }) => {
 const DailyMealPlan = ({ meals, allRecipes }) => {
     const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner'];
 
+    // --- NEW LOG for debugging ---
+    console.log('[DEBUG] DailyMealPlan Component Props:', { meals, allRecipes });
+
+    // --- UPDATED ---
+    // This function now correctly extracts the recipe object.
     const findRecipeForMeal = (mealType) => {
         const meal = meals.find(m => m.mealType.toLowerCase() === mealType.toLowerCase());
-        if (!meal) return null;
-        return allRecipes.find(r => r._id === meal.recipeId);
+        // The `meal.recipeId` field is already the populated recipe object from the backend.
+        return meal ? meal.recipeId : null;
     };
 
     return (
