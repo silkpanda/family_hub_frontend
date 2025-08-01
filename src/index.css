@@ -1,22 +1,22 @@
-/* File: /frontend/src/index.css */
-
-/* Import the Inter font from Google Fonts */
+/* ===================================================================================
+// File: /frontend/src/index.css
+// Purpose: Global CSS styles and resets.
+//
+// --- Dev Notes (UI Modernization) ---
+// - Sets the base font styles and background color for the entire application from the theme.
+// - Enables font anti-aliasing for smoother text rendering.
+// =================================================================================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* Apply some basic resets and global styles */
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #F8F9FA; /* Matches your theme's neutralBackground */
+  background-color: #F4F7F9; /* Corresponds to theme.colors.neutralBackground */
 }
 
-/* A good default for box-sizing */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
 }

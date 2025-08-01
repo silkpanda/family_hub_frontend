@@ -2,16 +2,13 @@
 // File: /frontend/src/components/calendar/EventModal.js
 // Purpose: The modal dialog for creating and editing calendar events.
 //
-// --- DEBUGGING UPDATE (Step 2) ---
-// This file is being updated to ensure its imports are correct, resolving the
-// compilation errors. The logic of the component itself remains unchanged.
-//
-// 1.  Confirmed `useCalendar` Import: The import statement for `useCalendar` is
-//     verified to be a correct named import, which will work once the corresponding
-//     `CalendarContext.js` file is also corrected.
+// --- Dev Notes (UI Refinement) ---
+// - The `style` prop has been removed from the description's `InputField`.
+// - The `InputField` component now handles its own textarea styling internally,
+//   making this component cleaner and more maintainable.
 // ===================================================================================
 import React, { useState, useEffect, useContext } from 'react';
-import { useCalendar } from '../../context/CalendarContext'; // Correct named import
+import { useCalendar } from '../../context/CalendarContext';
 import { FamilyContext } from '../../context/FamilyContext';
 import { theme } from '../../theme/theme';
 import Card from '../shared/Card';
@@ -48,7 +45,6 @@ const EventModal = ({ event, dateInfo, onClose }) => {
         startTime: formatForInput(event.startTime),
         endTime: formatForInput(event.endTime),
       });
-      // Ensure we map correctly, whether assignedTo is populated or just IDs
       const assigneeIds = event.assignedTo ? event.assignedTo.map(member => member._id || member) : [];
       setSelectedAssignees(assigneeIds);
     } else if (dateInfo) {
@@ -137,7 +133,15 @@ const EventModal = ({ event, dateInfo, onClose }) => {
           <InputField label="Title" name="title" value={formData.title} onChange={handleChange} required />
           <InputField label="Start Time" name="startTime" type="datetime-local" value={formData.startTime} onChange={handleChange} required />
           <InputField label="End Time" name="endTime" type="datetime-local" value={formData.endTime} onChange={handleChange} required />
-          <InputField label="Description" name="description" as="textarea" value={formData.description} onChange={handleChange} />
+          
+          {/* --- UPDATED --- */}
+          <InputField 
+            label="Description" 
+            name="description" 
+            as="textarea" 
+            value={formData.description} 
+            onChange={handleChange} 
+          />
           
           <div style={{ marginBottom: theme.spacing.lg }}>
             <label style={{ ...theme.typography.caption, color: theme.colors.textSecondary, marginBottom: theme.spacing.sm, display: 'block' }}>Assign to Family Members:</label>

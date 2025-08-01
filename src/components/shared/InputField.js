@@ -1,49 +1,60 @@
 // ===================================================================================
-// File: /src/components/shared/InputField.js
-// Purpose: A reusable and styled input field component. It supports standard text
-// inputs as well as other types like 'textarea'. It includes a label and visual
-// feedback for the focused state.
+// File: /frontend/src/components/shared/InputField.js
+// Purpose: A reusable, theme-aware InputField component for text, textareas, etc.
+//
+// --- Dev Notes (UI Modernization - Final Fix) ---
+// - BUG FIX: The component's internal structure was causing alignment issues on pages.
+// - SOLUTION:
+//   - The default `marginBottom` has been REMOVED from the component's container.
+//     Components should not dictate their own external margins.
+//   - The `style` prop is now correctly applied to the main container `div`, allowing
+//     pages like `ListsPage` to control its layout properties (e.g., `flexGrow`).
+// - BUG FIX: When used as a textarea, the component was resizable, breaking layouts.
+// - SOLUTION: The component now conditionally applies `resize: 'none'` and a
+//   standard height directly to the style of the textarea element itself.
 // ===================================================================================
 import React, { useState } from 'react';
 import { theme } from '../../theme/theme';
 
-/**
- * A standardized, reusable input field component with a label.
- * @param {object} props - Component props.
- * @param {string} props.label - The text label displayed above the input.
- * @param {string} props.value - The current value of the input.
- * @param {function} props.onChange - The function to call when the input value changes.
- * @param {string} [props.type='text'] - The type of the input (e.g., 'text', 'password', 'datetime-local').
- * @param {'input' | 'textarea'} [props.as='input'] - The underlying HTML element to render.
- */
-const InputField = ({ label, value, onChange, type = 'text', as = 'input', ...props }) => {
+const InputField = ({ label, value, onChange, type = 'text', as = 'input', style, ...props }) => {
     const [isFocused, setIsFocused] = useState(false);
-
+    
     const containerStyle = { 
-      display: 'flex', 
-      flexDirection: 'column', 
-      marginBottom: theme.spacing.md 
+        display: 'flex', 
+        flexDirection: 'column', 
+        ...style 
     };
-
+    
     const labelStyle = { 
-      fontFamily: theme.typography.fontFamily, 
-      fontSize: theme.typography.caption.fontSize, 
-      color: theme.colors.textSecondary, 
-      marginBottom: theme.spacing.sm 
+        fontFamily: theme.typography.fontFamily, 
+        fontSize: theme.typography.caption.fontSize, 
+        color: theme.colors.textSecondary, 
+        marginBottom: theme.spacing.sm 
     };
-
+    
     const inputStyle = {
         fontFamily: theme.typography.fontFamily,
         fontSize: theme.typography.body.fontSize,
-        padding: theme.spacing.sm,
-        // The border color changes when the input is focused.
-        border: `2px solid ${isFocused ? theme.colors.accentAction : '#ccc'}`,
-        borderRadius: theme.spacing.sm,
-        outline: 'none', // Remove default browser outline.
-        transition: 'border-color 0.2s ease-in-out',
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        border: `1px solid ${isFocused ? theme.colors.primaryBrand : '#EAECEE'}`,
+        borderRadius: theme.borderRadius.medium,
+        outline: 'none',
+        transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+        backgroundColor: theme.colors.neutralBackground,
+        boxShadow: isFocused ? `0 0 0 3px rgba(74, 144, 226, 0.3)` : 'none',
+        boxSizing: 'border-box',
+        width: '100%',
     };
 
-    // Allows the component to render as either an <input> or <textarea>.
+    // --- UPDATED: Conditionally apply textarea-specific styles ---
+    if (as === 'textarea') {
+        inputStyle.height = '120px';
+        inputStyle.resize = 'none';
+        inputStyle.padding = theme.spacing.md; // Use more padding for textareas
+    } else {
+        inputStyle.height = '44px';
+    }
+
     const InputComponent = as;
 
     return (
@@ -61,5 +72,4 @@ const InputField = ({ label, value, onChange, type = 'text', as = 'input', ...pr
         </div>
     );
 };
-
 export default InputField;

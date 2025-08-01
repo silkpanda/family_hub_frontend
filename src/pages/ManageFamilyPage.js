@@ -1,9 +1,15 @@
 // ===================================================================================
 // File: /frontend/src/pages/ManageFamilyPage.js
 // Purpose: The UI for managing family members and settings.
+//
+// --- Dev Notes (UPDATE) ---
+// - REFINEMENT: The family members list has been reorganized.
+// - Members are now filtered into two separate arrays: `parents` and `children`.
+// - The UI now renders two distinct sections with headings for "Parents/Guardians"
+//   and "Children", making the roles clearer and the page more organized.
 // ===================================================================================
 import React, { useContext, useState, useEffect } from 'react';
-import { FamilyContext } from '../context/FamilyContext'; // Ensure this import is correct
+import { FamilyContext } from '../context/FamilyContext';
 import Card from '../components/shared/Card';
 import Button from '../components/shared/Button';
 import InputField from '../components/shared/InputField';
@@ -12,61 +18,62 @@ import EditMemberModal from '../components/family/EditMemberModal';
 import { theme } from '../theme/theme';
 
 const ManageFamilyPage = () => {
-    // Correctly destructure state and actions from FamilyContext
     const { state, actions } = useContext(FamilyContext);
-    const { family, loading } = state; // Get family and loading from the state object
-    const { updateFamilyName } = actions; // Using updateFamilyName for now, as you used it recently
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const { family, loading } = state;
+    const { updateFamilyName } = actions;
+    const [isAddModalOpen, setIsAddModal] = useState(false);
     const [editingMember, setEditingMember] = useState(null);
-    const [familyNameInput, setFamilyNameInput] = useState(''); // Renamed to avoid conflict with `family` object
+    const [familyNameInput, setFamilyNameInput] = useState('');
     const [isEditingName, setIsEditingName] = useState(false);
 
-    // Add logs to see what state ManageFamilyPage is receiving
-    console.log(`[ManageFamilyPage] Render. Family: ${family ? family.name : 'null'}, Loading: ${loading}`);
-
-    // This effect should populate the input field once family data is available
     useEffect(() => {
         if (family) {
             setFamilyNameInput(family.name);
-            console.log(`[ManageFamilyPage] useEffect: Set family name input to: ${family.name}`);
-        } else {
-            console.log('[ManageFamilyPage] useEffect: Family is null, cannot set family name input.');
         }
-    }, [family]); // Dependency on family ensures this runs when family state changes
+    }, [family]);
 
-    // Loading indicator: Shows "Loading family details..." if loading is true
     if (loading) {
-        console.log('[ManageFamilyPage] Displaying "Loading family details..."');
         return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Loading family details...</p></div>;
     }
     
-    // Fallback: This should ideally not be hit if family is properly loaded,
-    // unless the user genuinely isn't part of a family.
     if (!family) {
-        console.log('[ManageFamilyPage] Displaying "No family found." - This should only happen if user is not in a family after load.');
         return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>No family found.</p></div>;
     }
     
-    // Handle saving the edited family name
     const handleNameSave = async () => { 
         if (familyNameInput.trim() && updateFamilyName) { 
-            console.log(`[ManageFamilyPage] Saving new family name: ${familyNameInput.trim()}`);
-            await updateFamilyName(familyNameInput.trim()); // Use updateFamilyName from actions
+            await updateFamilyName(familyNameInput.trim());
             setIsEditingName(false); 
-        } else {
-            console.warn('[ManageFamilyPage] Family name input is empty or updateFamilyName action is missing.');
         }
     };
+
+    // --- NEW: Filter members into roles ---
+    const parents = family.members.filter(m => m.role === 'Parent/Guardian');
+    const children = family.members.filter(m => m.role === 'Child');
     
     const pageStyle = { padding: theme.spacing.lg, fontFamily: theme.typography.fontFamily };
     const headerStyle = { ...theme.typography.h2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md };
+    const sectionHeaderStyle = { ...theme.typography.h4, color: theme.colors.textPrimary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.md, borderBottom: `2px solid ${theme.colors.neutralBackground}`, paddingBottom: theme.spacing.sm };
+
+    const MemberRow = ({ member }) => (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.sm, borderRadius: theme.spacing.sm }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: member.color, marginRight: theme.spacing.md }}></div>
+                <div>
+                    <p style={{ ...theme.typography.body, fontWeight: '600' }}>{member.userId.displayName}</p>
+                    <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>{member.role}</p>
+                </div>
+            </div>
+            <Button variant="tertiary" onClick={() => setEditingMember(member)}>Edit</Button>
+        </div>
+    );
 
     return (
         <div style={pageStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.lg }}>
                 {!isEditingName ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-                        <h1 style={headerStyle}>{family.name}</h1> {/* Use family.name directly */}
+                        <h1 style={headerStyle}>{family.name}</h1>
                         <Button variant="tertiary" onClick={() => setIsEditingName(true)}>Edit</Button>
                     </div>
                 ) : (
@@ -76,31 +83,30 @@ const ManageFamilyPage = () => {
                         <Button variant="tertiary" onClick={() => setIsEditingName(false)}>Cancel</Button>
                     </div>
                 )}
-                <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>+ Add Member</Button>
+                <Button variant="primary" onClick={() => setIsAddModal(true)}>+ Add Member</Button>
             </div>
             <Card>
-                <h2 style={{ ...theme.typography.h4, marginBottom: theme.spacing.md }}>Family Members</h2>
+                {/* --- UPDATED: Parents/Guardians Section --- */}
+                <h2 style={sectionHeaderStyle}>Parents/Guardians</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-                    {/* Ensure family.members is an array before mapping */}
-                    {family.members && family.members.length > 0 ? (
-                        family.members.map(member => (
-                            <div key={member.userId._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.sm, borderRadius: theme.spacing.sm }}>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: member.color, marginRight: theme.spacing.md }}></div>
-                                    <div>
-                                        <p style={{ ...theme.typography.body, fontWeight: '600' }}>{member.userId.displayName}</p>
-                                        <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>{member.role}</p>
-                                    </div>
-                                </div>
-                                <Button variant="tertiary" onClick={() => setEditingMember(member)}>Edit</Button>
-                            </div>
-                        ))
+                    {parents.length > 0 ? (
+                        parents.map(member => <MemberRow key={member.userId._id} member={member} />)
                     ) : (
-                        <p style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>No members found in this family yet.</p>
+                        <p style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>No parents or guardians in this family yet.</p>
+                    )}
+                </div>
+
+                {/* --- UPDATED: Children Section --- */}
+                <h2 style={sectionHeaderStyle}>Children</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+                    {children.length > 0 ? (
+                        children.map(member => <MemberRow key={member.userId._id} member={member} />)
+                    ) : (
+                        <p style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>No children in this family yet.</p>
                     )}
                 </div>
             </Card>
-            {isAddModalOpen && <AddMemberModal onClose={() => setIsAddModalOpen(false)} />}
+            {isAddModalOpen && <AddMemberModal onClose={() => setIsAddModal(false)} />}
             {editingMember && <EditMemberModal member={editingMember} onClose={() => setEditingMember(null)} />}
         </div>
     );

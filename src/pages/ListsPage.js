@@ -1,6 +1,14 @@
-// /frontend/src/pages/ListsPage.js
-
-import React, { useContext, useState } from 'react';
+// ===================================================================================
+// File: /frontend/src/pages/ListsPage.js
+// Purpose: The main UI for the Lists feature.
+//
+// --- Dev Notes (UI Modernization - Final Fix) ---
+// - BUG FIX: The "Create" button was misaligned with the text input field.
+// - SOLUTION: Added `alignItems: 'center'` to the form's flex container to ensure
+//   all child elements are vertically centered relative to each other. This is the
+//   most robust way to handle this type of alignment issue.
+// ===================================================================================
+import React, { useState } from 'react';
 import { useLists } from '../context/ListContext';
 import ListComponent from '../components/lists/ListComponent';
 import { theme } from '../theme/theme';
@@ -10,9 +18,8 @@ import Button from '../components/shared/Button';
 
 const ListsPage = () => {
   const { state, actions } = useLists();
-  // Provide a safe fallback for state to prevent any crashes
-  const { lists = [], loading } = state || { lists: [], loading: true };
-  const { createList } = actions || {};
+  const { lists, loading } = state;
+  const { createList } = actions;
   
   const [newListName, setNewListName] = useState('');
 
@@ -37,9 +44,8 @@ const ListsPage = () => {
     <div style={pageStyle}>
       <h1 style={{ ...theme.typography.h1, marginBottom: theme.spacing.lg }}>Shared Lists</h1>
       
-      {/* This Card contains the "add list feature" and should now be visible */}
       <Card style={{ marginBottom: theme.spacing.xl }}>
-        <form onSubmit={handleCreateList} style={{ display: 'flex', gap: theme.spacing.md }}>
+        <form onSubmit={handleCreateList} style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
            <InputField
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
@@ -51,7 +57,7 @@ const ListsPage = () => {
       </Card>
 
       <div>
-        {lists.length > 0 ? (
+        {lists && lists.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
             {lists.map(list => <ListComponent key={list._id} list={list} />)}
           </div>
