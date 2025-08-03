@@ -4,11 +4,13 @@
 //
 // --- Dev Notes (UPDATE) ---
 // - REFINEMENT: The family members list has been reorganized.
-// - Members are now filtered into two separate arrays: `parents` and `children`.
-// - The UI now renders two distinct sections with headings for "Parents/Guardians"
+// - Members are now filtered into two separate sections with headings for "Parents/Guardians"
 //   and "Children", making the roles clearer and the page more organized.
+// - REFINEMENT: Each member's row is now a clickable link that navigates to that
+//   member's profile page, creating a consistent navigation experience with the dashboard.
 // ===================================================================================
 import React, { useContext, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // --- NEW ---
 import { FamilyContext } from '../context/FamilyContext';
 import Card from '../components/shared/Card';
 import Button from '../components/shared/Button';
@@ -47,7 +49,6 @@ const ManageFamilyPage = () => {
         }
     };
 
-    // --- NEW: Filter members into roles ---
     const parents = family.members.filter(m => m.role === 'Parent/Guardian');
     const children = family.members.filter(m => m.role === 'Child');
     
@@ -56,16 +57,21 @@ const ManageFamilyPage = () => {
     const sectionHeaderStyle = { ...theme.typography.h4, color: theme.colors.textPrimary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.md, borderBottom: `2px solid ${theme.colors.neutralBackground}`, paddingBottom: theme.spacing.sm };
 
     const MemberRow = ({ member }) => (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.sm, borderRadius: theme.spacing.sm }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: member.color, marginRight: theme.spacing.md }}></div>
-                <div>
-                    <p style={{ ...theme.typography.body, fontWeight: '600' }}>{member.userId.displayName}</p>
-                    <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>{member.role}</p>
+        <Link to={`/profile/${member.userId._id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.sm, borderRadius: theme.borderRadius.medium, transition: 'background-color 0.2s ease' }} 
+                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.neutralBackground}
+                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: member.color, marginRight: theme.spacing.md }}></div>
+                    <div>
+                        <p style={{ ...theme.typography.body, fontWeight: '600' }}>{member.userId.displayName}</p>
+                        <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>{member.role}</p>
+                    </div>
                 </div>
+                <Button variant="tertiary" onClick={(e) => { e.preventDefault(); setEditingMember(member); }}>Edit</Button>
             </div>
-            <Button variant="tertiary" onClick={() => setEditingMember(member)}>Edit</Button>
-        </div>
+        </Link>
     );
 
     return (
@@ -86,7 +92,6 @@ const ManageFamilyPage = () => {
                 <Button variant="primary" onClick={() => setIsAddModal(true)}>+ Add Member</Button>
             </div>
             <Card>
-                {/* --- UPDATED: Parents/Guardians Section --- */}
                 <h2 style={sectionHeaderStyle}>Parents/Guardians</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
                     {parents.length > 0 ? (
@@ -96,7 +101,6 @@ const ManageFamilyPage = () => {
                     )}
                 </div>
 
-                {/* --- UPDATED: Children Section --- */}
                 <h2 style={sectionHeaderStyle}>Children</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
                     {children.length > 0 ? (

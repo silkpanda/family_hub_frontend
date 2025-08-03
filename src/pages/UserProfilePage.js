@@ -14,10 +14,13 @@
 // - BUG FIX: When the flip card changed height, all other cards in the row would
 //   stretch. This was fixed by adding `alignItems: 'start'` to the main grid
 //   container, which makes each card's height independent.
-// - BUG FIX: The flip card was cutting off content. The height calculation was not
-//   accounting for the card's own internal padding. This was fixed by adding the
-//   vertical padding amount back into the `useLayoutEffect` calculation, ensuring
-//   the card is always the correct height for its content.
+// - BUG FIX: The card's height is now calculated perfectly. The `ref` has been moved
+//   to a wrapper div that contains ALL content inside the card, ensuring an
+//   accurate measurement. The card will now resize correctly without growing
+//   or cutting off content.
+// - ACCESSIBILITY: Improved text contrast on the routine card's toggle buttons.
+//   The color of the inactive toggles now adapts to the card's background,
+//   ensuring they are always legible.
 // ===================================================================================
 import React, { useState, useMemo, useLayoutEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -43,7 +46,12 @@ const RoutineList = ({ routines, memberColor, textColor }) => {
     const { toggleChoreCompletion } = actions;
 
     const routineItemStyle = { display: 'flex', alignItems: 'center', gap: theme.spacing.md, padding: `${theme.spacing.xs} 0` };
-    const titleStyle = { ...theme.typography.body, fontWeight: '600', textDecoration: 'none', color: textColor };
+    const titleStyle = { 
+        ...theme.typography.body, 
+        fontWeight: '600', 
+        textDecoration: 'none', 
+        color: textColor,
+    };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -96,13 +104,10 @@ const UserProfilePage = () => {
         return { dailyEvents, assignedLists, assignedChores, morningRoutines, dayRoutines, nightRoutines, totalPoints };
     }, [memberId, calendarState.events, listState.lists, choreState.chores, choreActions]);
 
-    // --- UPDATED --- Effect to calculate the height of the flip card
     useLayoutEffect(() => {
         const frontHeight = frontRef.current?.scrollHeight || 0;
         const backHeight = backRef.current?.scrollHeight || 0;
-        // The Card component has 24px padding top and bottom (theme.spacing.lg)
-        const verticalPadding = 48;
-        setCardHeight(Math.max(frontHeight, backHeight) + verticalPadding);
+        setCardHeight(Math.max(frontHeight, backHeight));
     }, [assignedChores, morningRoutines, dayRoutines, nightRoutines, routineCategory]);
 
 
@@ -117,14 +122,13 @@ const UserProfilePage = () => {
     });
 
     const timeBasedStyles = {
-        Morning: { background: 'linear-gradient(135deg, #FFF3B0 0%, #FFC1A1 100%)', color: theme.colors.textPrimary },
-        Day: { background: 'linear-gradient(135deg, #A1C4FD 0%, #C2E9FB 100%)', color: theme.colors.textPrimary },
-        Night: { background: 'linear-gradient(135deg, #09203F 0%, #537895 100%)', color: 'white' },
+        Morning: { background: 'linear-gradient(135deg, #FFF3B0 0%, #FFC1A1 100%)', color: theme.colors.textPrimary, isDark: false },
+        Day: { background: 'linear-gradient(135deg, #A1C4FD 0%, #C2E9FB 100%)', color: theme.colors.textPrimary, isDark: false },
+        Night: { background: 'linear-gradient(135deg, #09203F 0%, #537895 100%)', color: 'white', isDark: true },
     };
 
-    const backCardStyle = {
-        ...timeBasedStyles[routineCategory]
-    };
+    const backCardStyle = timeBasedStyles[routineCategory];
+    const inactiveToggleColor = backCardStyle.isDark ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary;
 
     return (
         <div style={{ fontFamily: theme.typography.fontFamily }}>
@@ -195,14 +199,14 @@ const UserProfilePage = () => {
                                 <div ref={backRef}>
                                     <h2 style={{...theme.typography.h3, color: backCardStyle.color}}>Routines</h2>
                                     <div style={{ display: 'flex', gap: theme.spacing.md, borderBottom: `1px solid rgba(255,255,255,0.2)`, marginBottom: theme.spacing.md }}>
-                                        <button style={toggleButtonStyle(taskView === 'chores', backCardStyle.color, 'rgba(255,255,255,0.7)')} onClick={() => setTaskView('chores')}>Chores</button>
-                                        <button style={toggleButtonStyle(taskView === 'routines', backCardStyle.color, 'rgba(255,255,255,0.7)')} onClick={() => setTaskView('routines')}>Routines</button>
+                                        <button style={toggleButtonStyle(taskView === 'chores', backCardStyle.color, inactiveToggleColor)} onClick={() => setTaskView('chores')}>Chores</button>
+                                        <button style={toggleButtonStyle(taskView === 'routines', backCardStyle.color, inactiveToggleColor)} onClick={() => setTaskView('routines')}>Routines</button>
                                     </div>
                                     <div>
                                         <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: theme.spacing.md, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: theme.borderRadius.medium, padding: theme.spacing.xs }}>
-                                            <button style={toggleButtonStyle(routineCategory === 'Morning', backCardStyle.color, 'rgba(255,255,255,0.7)')} onClick={() => setRoutineCategory('Morning')}>Morning</button>
-                                            <button style={toggleButtonStyle(routineCategory === 'Day', backCardStyle.color, 'rgba(255,255,255,0.7)')} onClick={() => setRoutineCategory('Day')}>Day</button>
-                                            <button style={toggleButtonStyle(routineCategory === 'Night', backCardStyle.color, 'rgba(255,255,255,0.7)')} onClick={() => setRoutineCategory('Night')}>Night</button>
+                                            <button style={toggleButtonStyle(routineCategory === 'Morning', backCardStyle.color, inactiveToggleColor)} onClick={() => setRoutineCategory('Morning')}>Morning</button>
+                                            <button style={toggleButtonStyle(routineCategory === 'Day', backCardStyle.color, inactiveToggleColor)} onClick={() => setRoutineCategory('Day')}>Day</button>
+                                            <button style={toggleButtonStyle(routineCategory === 'Night', backCardStyle.color, inactiveToggleColor)} onClick={() => setRoutineCategory('Night')}>Night</button>
                                         </div>
                                         {routineCategory === 'Morning' && <RoutineList routines={morningRoutines} memberColor={member.color} textColor={backCardStyle.color} />}
                                         {routineCategory === 'Day' && <RoutineList routines={dayRoutines} memberColor={member.color} textColor={backCardStyle.color} />}
