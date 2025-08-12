@@ -1,11 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/components/shared/Button.js
-// Purpose: A reusable, theme-aware Button component.
-//
-// --- Dev Notes (UI Modernization - Final Fix) ---
-// - REVERTED: The explicit height has been removed, as the alignment issue is
-//   handled by the parent container's flexbox properties.
-// ===================================================================================
+// --- File: /frontend/src/components/shared/Button.js ---
+// A reusable, theme-aware button component with multiple variants.
+
 import React from 'react';
 import { theme } from '../../theme/theme';
 
@@ -20,6 +15,7 @@ const Button = ({ children, variant = 'primary', disabled = false, onClick, styl
     transition: 'filter 0.2s ease-in-out, opacity 0.2s ease-in-out',
     boxSizing: 'border-box',
     border: '1px solid transparent',
+    height: '44px',
     ...style,
   };
 

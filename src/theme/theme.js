@@ -1,29 +1,17 @@
-// ===================================================================================
-// File: /frontend/src/theme/theme.js
-// Purpose: Centralizes all design tokens for the app.
-//
-// --- Dev Notes (UI Modernization) ---
-// - This file has been updated to reflect the "Approachable Modernism" design system.
-// - Colors: The palette is now cleaner, with a neutral base and clear accent colors
-//   for actions and branding.
-// - Typography: Font sizes and weights have been refined for better hierarchy and legibility.
-// - Spacing: The spacing scale is more consistent and generous to promote white space.
-// - Shadows & Borders: Styles are softer and more subtle for a modern feel.
-// ===================================================================================
+// --- File: /frontend/src/theme/theme.js ---
+// Defines the design system for the application, including colors, typography, spacing, etc.
+
 export const theme = {
   colors: {
-    primaryBrand: '#4A90E2',      // A friendly, modern blue
-    secondaryBrand: '#50E3C2',    // A vibrant accent for secondary actions or highlights
-    accentAction: '#F5A623',      // A warm, attention-grabbing color for primary buttons
-    
-    neutralBackground: '#F4F7F9', // Light gray for the main app background
-    neutralSurface: '#FFFFFF',    // Clean white for cards and modals
-    
-    textPrimary: '#242A31',       // Dark slate for high-contrast text
-    textSecondary: '#6A737D',     // Lighter gray for secondary text and captions
-    
-    semanticError: '#D0021B',     // A clear, strong red for errors
-    semanticSuccess: '#7ED321',   // A bright green for success states
+    primaryBrand: '#4A90E2',
+    secondaryBrand: '#50E3C2',
+    accentAction: '#F5A623',
+    neutralBackground: '#F4F7F9',
+    neutralSurface: '#FFFFFF',
+    textPrimary: '#242A31',
+    textSecondary: '#6A737D',
+    semanticError: '#D0021B',
+    semanticSuccess: '#7ED321',
   },
   typography: {
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
@@ -35,12 +23,7 @@ export const theme = {
     caption: { fontSize: '0.875rem', fontWeight: '400' },
   },
   spacing: {
-    xs: '4px', 
-    sm: '8px', 
-    md: '16px', 
-    lg: '24px', 
-    xl: '32px', 
-    xxl: '48px',
+    xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px', xxl: '48px',
   },
   shadows: {
     subtle: '0px 2px 4px rgba(36, 42, 49, 0.05)',

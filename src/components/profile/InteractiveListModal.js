@@ -1,13 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/components/profile/InteractiveListModal.js
-// Purpose: A modal that displays a fully interactive list, allowing users to
-// check off or delete items directly from their profile page.
-//
-// --- Dev Notes ---
-// - This component is designed to be displayed as a pop-out on the UserProfilePage.
-// - It receives a `list` object and an `onClose` function as props.
-// - It uses the `useLists` hook to get the actions needed to modify list items.
-// ===================================================================================
+// --- File: /frontend/src/components/profile/InteractiveListModal.js ---
+// A modal that displays an interactive version of a shared list on the user profile page.
+
 import React from 'react';
 import { useLists } from '../../context/ListContext';
 import { theme } from '../../theme/theme';

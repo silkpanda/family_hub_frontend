@@ -1,23 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/components/calendar/EventModal.js
-// Purpose: The modal dialog for creating and editing calendar events.
-//
-// --- Dev Notes (UI Refinement) ---
-// - This component has been completely overhauled to be a moveable "pop-out" modal.
-// - It now receives a `position` prop from the CalendarPage.
-// - `useEffect` is used to calculate the initial position of the modal, intelligently
-//   placing it to the right or left of the clicked element to avoid the sidebar.
-// - State variables (`isDragging`, `currentPosition`, `dragOffset`) have been added
-//   to manage the dragging behavior.
-// - Event handlers (`handleMouseDown`, `handleMouseMove`, `handleMouseUp`) are used
-//   to implement the dragging logic.
-// - REFINEMENT: Added a subtle fade-in and scale-up animation for a more polished appearance.
-// - REFINEMENT: Added a CSS transition to the `top` and `left` properties, so the
-//   modal smoothly slides to a new position when a different day is clicked.
-// - BUG FIX: The initial appearance animation was a slide, not a fade/scale. This
-//   was fixed by conditionally applying the `transition` properties. The slide
-//   transition is now only active *after* the initial fade-in animation is complete.
-// ===================================================================================
+// --- File: /frontend/src/components/calendar/EventModal.js ---
+// A draggable modal for creating and editing calendar events.
+
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useCalendar } from '../../context/CalendarContext';
 import { FamilyContext } from '../../context/FamilyContext';
@@ -42,7 +25,7 @@ const EventModal = ({ event, dateInfo, onClose, position }) => {
   const [isPositioned, setIsPositioned] = useState(false);
   const modalRef = useRef(null);
 
-  // Effect to set the initial position of the modal
+  // useEffect: Positions the modal intelligently based on the click location.
   useEffect(() => {
     if (position && modalRef.current) {
         const modalWidth = modalRef.current.offsetWidth;
@@ -59,12 +42,11 @@ const EventModal = ({ event, dateInfo, onClose, position }) => {
         leftPos = Math.max(10, Math.min(leftPos, window.innerWidth - modalWidth - 10));
 
         setCurrentPosition({ top: topPos, left: leftPos });
-        // Use a timeout to allow the browser to apply the position before starting the animation
         setTimeout(() => setIsPositioned(true), 10);
     }
   }, [position]);
 
-  // Effect to handle dragging
+  // useEffect: Handles the dragging logic for the modal.
   useEffect(() => {
     const handleMouseMove = (e) => {
         if (!isDragging) return;
@@ -129,7 +111,6 @@ const EventModal = ({ event, dateInfo, onClose, position }) => {
     zIndex: 1050,
     opacity: isPositioned ? 1 : 0,
     transform: isPositioned ? 'scale(1)' : 'scale(0.95)',
-    // --- UPDATED: Conditionally apply transitions ---
     transition: `opacity 0.2s ease-out, transform 0.2s ease-out${isPositioned ? ', top 0.3s ease-out, left 0.3s ease-out' : ''}`,
   };
 

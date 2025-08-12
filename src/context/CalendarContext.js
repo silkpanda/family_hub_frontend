@@ -1,51 +1,28 @@
-// ===================================================================================
-// File: /frontend/src/context/CalendarContext.js
-// Purpose: Manages all state and actions for the Calendar feature.
-//
-// --- DEBUGGING UPDATE (Step 2) ---
-// The core logic of this file remains the same. The structure has been slightly
-// refactored to ensure the exports are as clear as possible for the compiler.
-//
-// 1.  No Self-Imports: This version is guaranteed to not have any erroneous
-//     `import ... from './CalendarContext'` lines, which was the likely cause
-//     of the compilation errors.
-//
-// 2.  Explicit Context Export: We are now also exporting the `CalendarContext`
-//     itself. This is a common and robust pattern.
-// ===================================================================================
+// --- File: /frontend/src/context/CalendarContext.js ---
+// Manages state for calendar events, including fetching, creating, updating, and deleting.
+
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import CalendarService from '../services/calendar.service.js';
-import { socket } from './SocketContext.js';
-import { AuthContext } from './AuthContext.js';
+import { SocketContext } from './SocketContext.js'; // Import context, not the socket instance.
+import { useFamily } from './FamilyContext.js';
 
-// Export the context itself so it can be used directly if needed elsewhere.
-export const CalendarContext = createContext();
+const CalendarContext = createContext();
 
+// Custom hook for easy access to calendar context.
 export const useCalendar = () => {
   const context = useContext(CalendarContext);
   if (context === undefined) {
-    // This provides a safe fallback and a clear error message if the hook is used
-    // outside of the provider, which is a common source of bugs.
-    return {
-      state: { events: [], loading: true, error: 'useCalendar must be used within a CalendarProvider' },
-      actions: {}
-    };
+    // Return a default state if used outside the provider to prevent crashes.
+    return { state: { events: [], loading: true, error: null }, actions: {} };
   }
   return context;
 };
 
-// Action types are kept constant to prevent typos and for easy reference.
-const actionTypes = {
-    SET_LOADING: 'SET_LOADING',
-    SET_EVENTS: 'SET_EVENTS',
-    ADD_EVENT: 'ADD_EVENT',
-    UPDATE_EVENT: 'UPDATE_EVENT',
-    DELETE_EVENT: 'DELETE_EVENT',
-    SET_ERROR: 'SET_ERROR'
-};
+// Action types for the reducer.
+const actionTypes = { SET_LOADING: 'SET_LOADING', SET_EVENTS: 'SET_EVENTS', ADD_EVENT: 'ADD_EVENT', UPDATE_EVENT: 'UPDATE_EVENT', DELETE_EVENT: 'DELETE_EVENT', SET_ERROR: 'SET_ERROR' };
 
+// Reducer to manage calendar state based on dispatched actions.
 const calendarReducer = (state, action) => {
-  console.log(`[CalendarContext] Reducer Action: ${action.type}`);
   switch (action.type) {
     case actionTypes.SET_LOADING: return { ...state, loading: true };
     case actionTypes.SET_EVENTS: return { ...state, loading: false, events: action.payload, error: null };
@@ -60,37 +37,24 @@ const calendarReducer = (state, action) => {
 export const CalendarProvider = ({ children }) => {
   const initialState = { events: [], loading: true, error: null };
   const [state, dispatch] = useReducer(calendarReducer, initialState);
-  const { isAuthenticated, isReady } = useContext(AuthContext);
+  const { state: familyState } = useFamily();
+  const { socket } = useContext(SocketContext); // Get socket from context.
 
-  // Effect for handling real-time updates via WebSockets.
+  // useEffect: Set up socket listeners for real-time event updates.
   useEffect(() => {
     if (socket) {
-      const handleCreated = (newEvent) => {
-        console.log('[Socket] Received event:created', newEvent);
-        dispatch({ type: actionTypes.ADD_EVENT, payload: newEvent });
-      };
-      const handleUpdated = (updatedEvent) => {
-        console.log('[Socket] Received event:updated', updatedEvent);
-        dispatch({ type: actionTypes.UPDATE_EVENT, payload: updatedEvent });
-      };
-      const handleDeleted = (data) => {
-        console.log('[Socket] Received event:deleted', data);
-        dispatch({ type: actionTypes.DELETE_EVENT, payload: data });
-      };
-
-      socket.on('event:created', handleCreated);
-      socket.on('event:updated', handleUpdated);
-      socket.on('event:deleted', handleDeleted);
-
-      // Cleanup function to remove listeners when the component unmounts.
-      return () => {
-        socket.off('event:created', handleCreated);
-        socket.off('event:updated', handleUpdated);
-        socket.off('event:deleted', handleDeleted);
+      socket.on('event:created', (newEvent) => dispatch({ type: actionTypes.ADD_EVENT, payload: newEvent }));
+      socket.on('event:updated', (updatedEvent) => dispatch({ type: actionTypes.UPDATE_EVENT, payload: updatedEvent }));
+      socket.on('event:deleted', (data) => dispatch({ type: actionTypes.DELETE_EVENT, payload: data }));
+      return () => { // Cleanup listeners on component unmount.
+        socket.off('event:created');
+        socket.off('event:updated');
+        socket.off('event:deleted');
       };
     }
-  }, []); // Empty dependency array means this effect runs once on mount.
+  }, [socket]); // Add socket as a dependency.
 
+  // fetchEvents: Fetches all events for the family from the backend.
   const fetchEvents = useCallback(async () => {
     dispatch({ type: actionTypes.SET_LOADING });
     try {
@@ -101,27 +65,24 @@ export const CalendarProvider = ({ children }) => {
     }
   }, []);
 
-  // Effect to fetch initial data when the user is authenticated.
+  // useEffect: Fetch events when family data is available.
   useEffect(() => {
-    if (isReady && isAuthenticated) {
+    if (familyState.family) {
       fetchEvents();
     }
-  }, [isReady, isAuthenticated, fetchEvents]);
+  }, [familyState.family, fetchEvents]);
 
-  // API action functions wrapped in useCallback for performance.
+  // CRUD actions for events.
   const createEvent = useCallback(async (eventData) => {
-    try { await CalendarService.createEvent(eventData); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
+      try { await CalendarService.createEvent(eventData); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
   }, []);
-
   const updateEvent = useCallback(async (id, eventData) => {
-    try { await CalendarService.updateEvent(id, eventData); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
+      try { await CalendarService.updateEvent(id, eventData); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
   }, []);
-
   const deleteEvent = useCallback(async (id) => {
-    try { await CalendarService.deleteEvent(id); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
+      try { await CalendarService.deleteEvent(id); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
   }, []);
 
-  // Memoize the actions and the full context value to prevent unnecessary re-renders.
   const actions = useMemo(() => ({ createEvent, updateEvent, deleteEvent }), [createEvent, updateEvent, deleteEvent]);
   const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
 

@@ -1,18 +1,32 @@
+// --- File: /frontend/src/services/chore.service.js ---
+// Provides API functions for interacting with chores and the approval system.
+
 import api from './api';
+
 const API_URL_CHORE = '/chores';
 
-const getChores = () => {
-  console.log('[Chore Service] Fetching chores from API...');
-  return api.get(API_URL_CHORE).then(res => {
-    console.log('[Chore Service] API Response Data:', res.data);
-    return res.data;
-  });
+// --- Authenticated Functions ---
+const getChores = () => api.get(API_URL_CHORE).then(res => res.data);
+const createChore = (data) => api.post(API_URL_CHORE, data).then(res => res.data);
+const deleteChore = (id) => api.delete(`${API_URL_CHORE}/${id}`).then(res => res.data);
+const submitChoreForApproval = (id) => api.patch(`${API_URL_CHORE}/${id}/submit`).then(res => res.data);
+const approveChore = (id) => api.patch(`${API_URL_CHORE}/${id}/approve`).then(res => res.data);
+const rejectChore = (id) => api.patch(`${API_URL_CHORE}/${id}/reject`).then(res => res.data);
+
+// --- Public/Unauthenticated Function ---
+const completeChoreForChild = (choreId, childId) => {
+    return api.patch(`${API_URL_CHORE}/public/${choreId}/complete/${childId}`).then(res => res.data);
 };
 
-const createChore = (data) => api.post(API_URL_CHORE, data).then(res => res.data);
-const updateChore = (id, data) => api.put(`${API_URL_CHORE}/${id}`, data).then(res => res.data);
-const deleteChore = (id) => api.delete(`${API_URL_CHORE}/${id}`).then(res => res.data);
-const toggleChoreCompletion = (id) => api.patch(`${API_URL_CHORE}/${id}/toggle`).then(res => res.data);
 
-const ChoreService = { getChores, createChore, updateChore, deleteChore, toggleChoreCompletion };
+const ChoreService = { 
+    getChores, 
+    createChore, 
+    deleteChore, 
+    submitChoreForApproval, 
+    approveChore, 
+    rejectChore,
+    completeChoreForChild
+};
+
 export default ChoreService;

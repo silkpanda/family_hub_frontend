@@ -1,28 +1,17 @@
-// ===================================================================================
-// File: /frontend/src/context/ListContext.js
-// Purpose: Manages all state and actions for the Lists feature.
-//
-// --- Dev Notes (UPDATE) ---
-// - BUG FIX: Interacting with lists on the profile page required a refresh.
-// - SOLUTION: The `toggleItemCompletion` and `deleteItem` functions have been
-//   updated to await the API response and dispatch an `UPDATE_LIST` action
-//   immediately. This ensures the UI updates instantly for the user performing
-//   the action, resolving the state synchronization issue.
-// ===================================================================================
+// --- File: /frontend/src/context/ListContext.js ---
+// Manages state for shared lists, including items, assignments, and real-time updates.
+
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import ListService from '../services/list.service.js';
-import { socket } from './SocketContext.js';
-import { AuthContext } from './AuthContext.js';
+import { SocketContext } from './SocketContext.js';
+import { useFamily } from './FamilyContext.js';
 
 const ListContext = createContext();
 
 export const useLists = () => {
   const context = useContext(ListContext);
   if (context === undefined) {
-    return {
-      state: { lists: [], loading: true, error: 'useLists must be used within a ListProvider' },
-      actions: {}
-    };
+    return { state: { lists: [], loading: true, error: null }, actions: {} };
   }
   return context;
 };
@@ -33,11 +22,8 @@ const listReducer = (state, action) => {
   switch (action.type) {
     case actionTypes.SET_LOADING: return { ...state, loading: true };
     case actionTypes.SET_LISTS: return { ...state, loading: false, lists: action.payload, error: null };
-    case actionTypes.ADD_LIST:
-      if (state.lists.some(list => list._id === action.payload._id)) {
-        return state;
-      }
-      return { ...state, lists: [...state.lists, action.payload] };
+    // Prevents adding a duplicate list if it already exists in the state.
+    case actionTypes.ADD_LIST: if (state.lists.some(l => l._id === action.payload._id)) return state; return { ...state, lists: [...state.lists, action.payload] };
     case actionTypes.UPDATE_LIST: return { ...state, lists: state.lists.map(list => list._id === action.payload._id ? action.payload : list) };
     case actionTypes.DELETE_LIST: return { ...state, lists: state.lists.filter(list => list._id !== action.payload.id) };
     case actionTypes.SET_ERROR: return { ...state, loading: false, error: action.payload };
@@ -48,7 +34,8 @@ const listReducer = (state, action) => {
 export const ListProvider = ({ children }) => {
   const initialState = { lists: [], loading: true, error: null };
   const [state, dispatch] = useReducer(listReducer, initialState);
-  const { isAuthenticated, isReady } = useContext(AuthContext);
+  const { state: familyState } = useFamily();
+  const { socket } = useContext(SocketContext); // Get socket from context.
 
   useEffect(() => {
     if (socket) {
@@ -61,7 +48,7 @@ export const ListProvider = ({ children }) => {
         socket.off('list:deleted');
       };
     }
-  }, []);
+  }, [socket]); // Add socket as a dependency.
 
   const fetchLists = useCallback(async () => {
     dispatch({ type: actionTypes.SET_LOADING });
@@ -74,61 +61,54 @@ export const ListProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (isReady && isAuthenticated) {
+    if (familyState.family) {
       fetchLists();
     }
-  }, [isReady, isAuthenticated, fetchLists]);
+  }, [familyState.family, fetchLists]);
 
+  // Actions for list and list item management.
   const createList = useCallback(async (listData) => {
-    try {
-      const newList = await ListService.createList(listData);
-      dispatch({ type: actionTypes.ADD_LIST, payload: newList });
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+      try {
+          const newList = await ListService.createList(listData);
+          dispatch({ type: actionTypes.ADD_LIST, payload: newList });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
   }, []);
-
   const deleteList = useCallback(async (id) => {
-    try { await ListService.deleteList(id); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
+      try { await ListService.deleteList(id); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
   }, []);
-
   const addItem = useCallback(async (listId, itemData) => {
-    try {
-      const updatedList = await ListService.addItemToList(listId, itemData);
-      dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+      try {
+          const updatedList = await ListService.addItemToList(listId, itemData);
+          dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
   }, []);
-
-  // --- UPDATED ---
   const toggleItemCompletion = useCallback(async (listId, itemId) => {
-    try {
-        const updatedList = await ListService.toggleListItemCompletion(listId, itemId);
-        dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
-    } catch (err) {
-        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+      try {
+          const updatedList = await ListService.toggleListItemCompletion(listId, itemId);
+          dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
   }, []);
-
-  // --- UPDATED ---
   const deleteItem = useCallback(async (listId, itemId) => {
-    try {
-        // The backend now returns the updated list after deletion.
-        const updatedList = await ListService.deleteListItem(listId, itemId);
-        dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
-    } catch (err) {
-        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+      try {
+          const updatedList = await ListService.deleteListItem(listId, itemId);
+          dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
   }, []);
-
   const assignList = useCallback(async (listId, userIds) => {
-    try {
-        const updatedList = await ListService.assignList(listId, userIds);
-        dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
-    } catch (err) {
-        dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
+      try {
+          const updatedList = await ListService.assignList(listId, userIds);
+          dispatch({ type: actionTypes.UPDATE_LIST, payload: updatedList });
+      } catch (err) {
+          dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
+      }
   }, []);
 
   const actions = useMemo(() => ({ createList, deleteList, addItem, toggleItemCompletion, deleteItem, assignList }), [createList, deleteList, addItem, toggleItemCompletion, deleteItem, assignList]);

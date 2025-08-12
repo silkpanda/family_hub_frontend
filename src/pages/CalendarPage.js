@@ -1,15 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/pages/CalendarPage.js
-// Purpose: The main UI for the Calendar feature.
-//
-// --- Dev Notes (UI Refinement) ---
-// - REFINEMENT: The event modal is now a moveable pop-out.
-// - Added `modalPosition` state to track the coordinates of a user's click.
-// - The `handleDateSelect` and `handleEventClick` handlers now capture the
-//   bounding rectangle of the clicked element (`day cell` or `event`).
-// - This position data is passed as a prop to the `EventModal` to allow it to
-//   position itself intelligently on the screen.
-// ===================================================================================
+// --- File: /frontend/src/pages/CalendarPage.js ---
+// Renders the main calendar view using the FullCalendar library.
+
 import React, { useState, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -27,8 +18,9 @@ const CalendarPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDateInfo, setSelectedDateInfo] = useState(null);
-  const [modalPosition, setModalPosition] = useState(null); // --- NEW ---
+  const [modalPosition, setModalPosition] = useState(null);
 
+  // Memoize the transformation of backend events into FullCalendar's event format.
   const calendarEvents = useMemo(() => {
     if (!events) return [];
     return events.map(event => ({
@@ -43,17 +35,19 @@ const CalendarPage = () => {
     }));
   }, [events]);
 
+  // handleDateSelect: Opens the modal to create a new event when a date is clicked.
   const handleDateSelect = (selectInfo) => {
     const rect = selectInfo.jsEvent.target.getBoundingClientRect();
-    setModalPosition({ top: rect.top, left: rect.left, right: rect.right }); // --- NEW ---
+    setModalPosition({ top: rect.top, left: rect.left, right: rect.right });
     setSelectedEvent(null); 
     setSelectedDateInfo(selectInfo);
     setIsModalOpen(true);
   };
   
+  // handleEventClick: Opens the modal to edit an existing event when it's clicked.
   const handleEventClick = (clickInfo) => {
     const rect = clickInfo.el.getBoundingClientRect();
-    setModalPosition({ top: rect.top, left: rect.left, right: rect.right }); // --- NEW ---
+    setModalPosition({ top: rect.top, left: rect.left, right: rect.right });
     setSelectedDateInfo(null);
     setSelectedEvent(clickInfo.event.extendedProps);
     setIsModalOpen(true);
@@ -63,13 +57,14 @@ const CalendarPage = () => {
     setIsModalOpen(false);
     setSelectedEvent(null);
     setSelectedDateInfo(null);
-    setModalPosition(null); // --- NEW ---
+    setModalPosition(null);
   };
 
+  // handleEventDrop: Handles drag-and-drop functionality to update event times.
   const handleEventDrop = (dropInfo) => {
     const { event } = dropInfo;
     if (!event.start || !event.end) {
-      dropInfo.revert();
+      dropInfo.revert(); // Revert the drop if times are invalid.
       return;
     }
     const assignedToIds = event.extendedProps.assignedTo
@@ -86,10 +81,10 @@ const CalendarPage = () => {
     if(updateEvent) updateEvent(event.id, updatedEventData);
   };
 
-  if (loading) { return <div>Loading Calendar...</div>; }
+  if (loading) { return <div style={{padding: theme.spacing.lg}}>Loading Calendar...</div>; }
 
   return (
-    <div style={{ fontFamily: theme.typography.fontFamily, color: theme.colors.textPrimary }}>
+    <div style={{ fontFamily: theme.typography.fontFamily, color: theme.colors.textPrimary, padding: theme.spacing.lg }}>
       <h1 style={{ ...theme.typography.h1, marginBottom: theme.spacing.lg }}>Calendar</h1>
       <div className="calendar-container" style={{ backgroundColor: theme.colors.neutralSurface, padding: theme.spacing.md, borderRadius: theme.borderRadius.large }}>
           <FullCalendar

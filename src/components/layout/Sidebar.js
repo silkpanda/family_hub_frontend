@@ -1,29 +1,32 @@
-// ===================================================================================
-// File: /frontend/src/components/layout/Sidebar.js
-// Purpose: The main navigation sidebar for the application.
-//
-// --- Dev Notes (UI Modernization) ---
-// - The sidebar's background color is now a clean white to stand out against the
-//   new light gray app background.
-// - The active link style has been updated to use the new theme's accent color
-//   for a more modern feel.
-// - Spacing and typography have been adjusted for better clarity and alignment.
-// - REFINEMENT: Added `flexShrink: 0` to the main style. This is a best practice
-//   for fixed-width sidebars in a flex layout, as it explicitly prevents the
-//   sidebar from shrinking if the main content area becomes too wide.
-// ===================================================================================
+// --- File: /frontend/src/components/layout/Sidebar.js ---
+// The main navigation sidebar for authenticated users.
+
 import React, { useContext } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { theme } from '../../theme/theme';
 import Button from '../shared/Button';
 
 const Sidebar = () => {
-    const { logout } = useContext(AuthContext);
+    // **UPDATE:** Get the new logout functions from the context.
+    const { parentLogout, fullLogout } = useContext(AuthContext);
+    const navigate = useNavigate();
+
+    const handleParentLogout = () => {
+        if (parentLogout) {
+            parentLogout(navigate);
+        }
+    };
+
+    const handleFullLogout = () => {
+        if (fullLogout) {
+            fullLogout(navigate);
+        }
+    };
 
     const sidebarStyle = {
         width: '240px',
-        flexShrink: 0, // --- NEW ---
+        flexShrink: 0,
         height: '100vh',
         backgroundColor: theme.colors.neutralSurface,
         borderRight: `1px solid #EAECEE`,
@@ -33,28 +36,9 @@ const Sidebar = () => {
         fontFamily: theme.typography.fontFamily,
     };
 
-    const logoStyle = {
-        ...theme.typography.h2,
-        color: theme.colors.primaryBrand,
-        textAlign: 'center',
-        marginBottom: theme.spacing.xxl,
-    };
-
-    const navLinkStyle = {
-        textDecoration: 'none',
-        color: theme.colors.textSecondary,
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        borderRadius: theme.borderRadius.medium,
-        marginBottom: theme.spacing.sm,
-        ...theme.typography.body,
-        fontWeight: '500',
-        transition: 'background-color 0.2s ease, color 0.2s ease',
-    };
-    
-    const activeLinkStyle = {
-        backgroundColor: theme.colors.primaryBrand,
-        color: theme.colors.neutralSurface,
-    };
+    const logoStyle = { ...theme.typography.h2, color: theme.colors.primaryBrand, textAlign: 'center', marginBottom: theme.spacing.xxl };
+    const navLinkStyle = { textDecoration: 'none', color: theme.colors.textSecondary, padding: `${theme.spacing.sm} ${theme.spacing.md}`, borderRadius: theme.borderRadius.medium, marginBottom: theme.spacing.sm, ...theme.typography.body, fontWeight: '500', transition: 'background-color 0.2s ease, color 0.2s ease' };
+    const activeLinkStyle = { backgroundColor: theme.colors.primaryBrand, color: theme.colors.neutralSurface };
 
     return (
         <div style={sidebarStyle}>
@@ -65,9 +49,14 @@ const Sidebar = () => {
                 <NavLink to="/lists" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Lists</NavLink>
                 <NavLink to="/chores" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Chores</NavLink>
                 <NavLink to="/meals" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Meal Planner</NavLink>
+                <NavLink to="/store" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Store</NavLink>
                 <NavLink to="/family" style={({ isActive }) => ({ ...navLinkStyle, ...(isActive ? activeLinkStyle : {}) })}>Family</NavLink>
             </nav>
-            <Button variant="tertiary" onClick={logout}>Logout</Button>
+            {/* **UPDATE:** Replaced the single logout button with two distinct actions. */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+                <Button variant="secondary" onClick={handleParentLogout}>End Parent Session</Button>
+                <Button variant="tertiary" onClick={handleFullLogout}>Sign Out Completely</Button>
+            </div>
         </div>
     );
 };

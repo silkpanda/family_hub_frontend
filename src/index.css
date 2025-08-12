@@ -1,22 +1,14 @@
-/* ===================================================================================
-// File: /frontend/src/index.css
-// Purpose: Global CSS styles and resets.
-//
-// --- Dev Notes (UI Modernization) ---
-// - Sets the base font styles and background color for the entire application from the theme.
-// - Enables font anti-aliasing for smoother text rendering.
-// =================================================================================== */
+/* --- File: /frontend/src/index.css ---
+/* This file contains global CSS styles and font imports for the entire application.
+
+/* Import the 'Inter' font from Google Fonts, which is used throughout the app. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Basic body styling to set the default font and background color. */
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #F4F7F9; /* Corresponds to theme.colors.neutralBackground */
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  -webkit-font-smoothing: antialiased; /* Enables anti-aliasing for fonts on WebKit browsers. */
+  -moz-osx-font-smoothing: grayscale; /* Enables anti-aliasing for fonts on Firefox. */
+  background-color: #F4F7F9; /* Sets a neutral, light gray background color. */
 }

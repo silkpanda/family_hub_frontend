@@ -1,35 +1,19 @@
-// ===================================================================================
-// File: /src/services/auth.service.js
-// Purpose: Provides a simple event-based system for handling global authentication
-// events, specifically logout. This allows different parts of the app (like the API
-// interceptor) to signal a logout event without being directly coupled to the
-// AuthContext or UI components.
-// ===================================================================================
+// --- File: /frontend/src/services/auth.service.js ---
+// Provides authentication-related API functions.
 
-// Use the browser's built-in EventTarget API for a simple pub/sub system.
+import api from './api';
+
+// Use EventTarget to create a simple event system for logout events.
 const events = new EventTarget();
 
+// loginWithPin: Sends a request to log in a parent user with their PIN.
+const loginWithPin = (memberId, pin) => {
+    return api.post('/auth/pin-login', { memberId, pin }).then(res => res.data);
+};
+
 export const authService = {
-  /**
-   * Subscribes a callback function to the 'logout' event.
-   * @param {function} callback - The function to call when a logout is triggered.
-   */
-  onLogout: (callback) => {
-    events.addEventListener('logout', callback);
-  },
-
-  /**
-   * Dispatches a 'logout' event to all listeners.
-   */
-  triggerLogout: () => {
-    events.dispatchEvent(new Event('logout'));
-  },
-
-  /**
-   * Unsubscribes a callback function from the 'logout' event.
-   * @param {function} callback - The callback function to remove.
-   */
-  removeLogoutListener: (callback) => {
-    events.removeEventListener('logout', callback);
-  }
+  onLogout: (callback) => { events.addEventListener('logout', callback); },
+  triggerLogout: () => { events.dispatchEvent(new Event('logout')); },
+  removeLogoutListener: (callback) => { events.removeEventListener('logout', callback); },
+  loginWithPin,
 };

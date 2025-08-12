@@ -1,123 +1,110 @@
-// ===================================================================================
-// File: /frontend/src/pages/ChoresPage.js
-// Purpose: The main UI for the Chores feature, redesigned with a column-based layout.
-//
-// --- Dev Notes (UPDATE) ---
-// - This is a complete redesign of the page.
-// - It now uses `FamilyContext` to get the list of members.
-// - A filter allows the user to show/hide members from the view.
-// - `MemberChoreColumn`: A new sub-component that renders a column for each member,
-//   displaying their assigned chores and routines.
-// - Each column has a circular '+' button that opens the new `AddChoreRoutineModal`.
-// - REFINEMENT: Each member column now contains a toggle to switch between viewing
-//   'Choores' (items with points) and 'Routines' (items without points).
-// - REFINEMENT: The member columns are now sorted to display Parents/Guardians first,
-//   then Children, with each group sorted alphabetically.
-// - REFINEMENT: The header of each member's column is now a clickable link that
-//   navigates to that member's profile page.
-// - DYNAMIC FEATURE: Added a "celebration" animation. A confetti burst now appears
-//   when a chore is checked off as complete.
-// ===================================================================================
-import React, { useState, useEffect } from 'react';
+// --- File: /frontend/src/pages/ChoresPage.js ---
+// Displays the main chores and routines page, including the approval queue for parents.
+
+import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { useChores } from '../context/ChoreContext';
 import { useFamily } from '../context/FamilyContext';
+import { AuthContext } from '../context/AuthContext';
 import { theme } from '../theme/theme';
 import Card from '../components/shared/Card';
 import Button from '../components/shared/Button';
 import AddChoreRoutineModal from '../components/chores/AddChoreRoutineModal';
 
-// --- NEW: Confetti Animation Component ---
-const Confetti = () => {
-    const confettiColors = ['#4A90E2', '#50E3C2', '#F5A623', '#D0021B', '#7ED321'];
-    const confettiPieces = Array.from({ length: 15 }).map((_, index) => {
-        const style = {
-            position: 'absolute',
-            width: `${Math.random() * 8 + 4}px`,
-            height: `${Math.random() * 8 + 4}px`,
-            backgroundColor: confettiColors[Math.floor(Math.random() * confettiColors.length)],
-            top: '50%',
-            left: '50%',
-            opacity: 0,
-            animation: `confetti-burst 0.8s ${index * 0.02}s ease-out forwards`,
-        };
-        return <div key={index} style={style} />;
-    });
-    return <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>{confettiPieces}</div>;
-};
-
+// ChoreCard: Renders a single chore item with completion logic.
 const ChoreCard = ({ chore }) => {
     const { actions } = useChores();
-    const { toggleChoreCompletion } = actions;
+    const { user } = useContext(AuthContext);
+    const { state: familyState } = useFamily();
+    // **UPDATE:** Get the new `completeChoreForChild` action from the context.
+    const { submitChoreForApproval, completeChoreForChild } = actions;
+
     const isRoutine = chore.points === 0;
-    const [showConfetti, setShowConfetti] = useState(false);
+    const isCurrentUserAssigned = chore.assignedTo?._id === user?.id;
+    const currentUserMember = familyState.family?.members.find(m => m.userId._id === user?.id);
+    const isParent = currentUserMember?.role === 'Parent/Guardian';
 
+    // **BUG FIX:** The handleToggle logic is updated to allow parents to complete any chore.
     const handleToggle = () => {
-        if (!chore.isComplete) {
-            setShowConfetti(true);
+        if (isParent) {
+            // If the user is a parent, they can complete the chore for the assigned child.
+            // We must check that `chore.assignedTo` exists before trying to complete it.
+            if (chore.assignedTo?._id && completeChoreForChild) {
+                completeChoreForChild(chore._id, chore.assignedTo._id);
+            }
+        } else if (isCurrentUserAssigned) {
+            // If the user is not a parent, they can only submit their own chores.
+            if (submitChoreForApproval) submitChoreForApproval(chore._id);
         }
-        if (toggleChoreCompletion) toggleChoreCompletion(chore._id);
     };
-
-    useEffect(() => {
-        if (showConfetti) {
-            const timer = setTimeout(() => setShowConfetti(false), 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [showConfetti]);
 
     const cardStyle = {
         padding: theme.spacing.md,
-        backgroundColor: chore.isComplete ? '#f0fdf4' : theme.colors.neutralSurface,
+        backgroundColor: chore.status === 'Completed' ? '#f0fdf4' : theme.colors.neutralSurface,
         borderRadius: theme.borderRadius.medium,
         border: `1px solid ${theme.colors.neutralBackground}`,
-        opacity: chore.isComplete ? 0.7 : 1,
-        position: 'relative', // Needed for confetti positioning
+        opacity: chore.status === 'Completed' ? 0.7 : 1,
     };
-    const titleStyle = { ...theme.typography.body, fontWeight: '600', textDecoration: chore.isComplete ? 'line-through' : 'none' };
+    const titleStyle = { ...theme.typography.body, fontWeight: '600', textDecoration: chore.status === 'Completed' ? 'line-through' : 'none' };
     const pointsStyle = { ...theme.typography.h4, color: theme.colors.secondaryBrand };
+    const statusStyle = { ...theme.typography.caption, fontStyle: 'italic', color: theme.colors.accentAction };
 
     return (
-        <div style={cardStyle}>
-            {showConfetti && <Confetti />}
+        <Card style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-                    <input type="checkbox" checked={chore.isComplete} onChange={handleToggle} style={{ width: '24px', height: '24px', cursor: 'pointer' }} />
-                    <p style={titleStyle}>{chore.title}</p>
+                    <input 
+                        type="checkbox" 
+                        checked={chore.status === 'Completed' || chore.status === 'Pending Approval'} 
+                        onChange={handleToggle} 
+                        // A chore can be checked off if it's incomplete AND (the user is a parent OR they are the assigned user).
+                        disabled={chore.status !== 'Incomplete' || (!isParent && !isCurrentUserAssigned)}
+                        style={{ width: '24px', height: '24px', cursor: 'pointer' }} 
+                    />
+                    <div>
+                        <p style={titleStyle}>{chore.title}</p>
+                        {chore.status === 'Pending Approval' && <p style={statusStyle}>Waiting for Approval</p>}
+                    </div>
                 </div>
                 {!isRoutine && <span style={pointsStyle}>{chore.points} pts</span>}
             </div>
-        </div>
+        </Card>
     );
 };
 
-const RoutineCategoryCard = ({ title, routines, memberColor }) => {
-    const timeBasedStyles = {
-        Morning: { background: 'linear-gradient(135deg, #FFF3B0 0%, #FFC1A1 100%)', color: theme.colors.textPrimary },
-        Day: { background: 'linear-gradient(135deg, #A1C4FD 0%, #C2E9FB 100%)', color: theme.colors.textPrimary },
-        Night: { background: 'linear-gradient(135deg, #09203F 0%, #537895 100%)', color: 'white' },
-    };
-    const cardStyle = { padding: theme.spacing.md, borderRadius: theme.borderRadius.medium, ...timeBasedStyles[title] };
-    if (routines.length === 0) return null;
+// ApprovalQueue: A section visible only to parents for approving/rejecting chores.
+const ApprovalQueue = ({ chores }) => {
+    const { actions } = useChores();
+    const { approveChore, rejectChore } = actions;
+    if (chores.length === 0) return null;
 
     return (
-        <div style={cardStyle}>
-            <h4 style={{ ...theme.typography.h4, borderBottom: `2px solid ${timeBasedStyles[title].color}`, paddingBottom: theme.spacing.xs, marginBottom: theme.spacing.sm, color: timeBasedStyles[title].color }}>{title}</h4>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {routines.map(routine => <ChoreCard key={routine._id} chore={routine} />)}
+        <Card style={{ marginBottom: theme.spacing.lg, backgroundColor: '#fffbe6' }}>
+            <h2 style={{ ...theme.typography.h3, marginBottom: theme.spacing.md }}>Pending Approval</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+                {chores.map(chore => (
+                    <div key={chore._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.sm, backgroundColor: 'white', borderRadius: theme.borderRadius.medium }}>
+                        <div>
+                            <p style={{ fontWeight: '600' }}>{chore.title}</p>
+                            <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>Completed by: {chore.assignedTo?.displayName}</p>
+                        </div>
+                        <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+                            <Button variant="tertiary" onClick={() => rejectChore && rejectChore(chore._id)}>Reject</Button>
+                            <Button variant="secondary" onClick={() => approveChore && approveChore(chore._id)}>Approve</Button>
+                        </div>
+                    </div>
+                ))}
             </div>
-        </div>
+        </Card>
     );
 };
 
-
+// MemberChoreColumn: Displays chores and routines for a single family member.
 const MemberChoreColumn = ({ member, chores, onAddClick }) => {
-    const [view, setView] = useState('chores');
-    const assignedChores = chores.filter(c => c.assignedTo?._id === member.userId._id && c.points > 0);
-    const assignedRoutines = chores.filter(c => c.assignedTo?._id === member.userId._id && c.points === 0);
-    const morningRoutines = assignedRoutines.filter(r => r.routineCategory === 'Morning');
-    const dayRoutines = assignedRoutines.filter(r => r.routineCategory === 'Day');
-    const nightRoutines = assignedRoutines.filter(r => r.routineCategory === 'Night');
+    const [view, setView] = useState('chores'); 
+
+    const assignedChores = chores.filter(chore => chore.assignedTo?._id === member.userId._id && chore.points > 0);
+    const assignedRoutines = chores.filter(chore => chore.assignedTo?._id === member.userId._id && chore.points === 0);
 
     const columnStyle = { flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: theme.spacing.md };
     const headerStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: theme.spacing.sm, borderBottom: `2px solid ${member.color}` };
@@ -146,11 +133,10 @@ const MemberChoreColumn = ({ member, chores, onAddClick }) => {
                     )}
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-                    <RoutineCategoryCard title="Morning" routines={morningRoutines} memberColor={member.color} />
-                    <RoutineCategoryCard title="Day" routines={dayRoutines} memberColor={member.color} />
-                    <RoutineCategoryCard title="Night" routines={nightRoutines} memberColor={member.color} />
-                    {assignedRoutines.length === 0 && (
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+                    {assignedRoutines.length > 0 ? (
+                        assignedRoutines.map(chore => <ChoreCard key={chore._id} chore={chore} />)
+                    ) : (
                         <p style={{ textAlign: 'center', color: theme.colors.textSecondary, paddingTop: theme.spacing.lg }}>No routines assigned.</p>
                     )}
                 </div>
@@ -159,9 +145,15 @@ const MemberChoreColumn = ({ member, chores, onAddClick }) => {
     );
 };
 
+// ChoresPage: The main component orchestrating the page layout and data flow.
 const ChoresPage = () => {
-    const { state: choreState, loading: choresLoading } = useChores();
-    const { state: familyState, loading: familyLoading } = useFamily();
+    const { state: choreState } = useChores();
+    const { state: familyState } = useFamily();
+    const { user, isAuthenticated } = useContext(AuthContext);
+    
+    const { chores, loading: choresLoading } = choreState;
+    const { family, loading: familyLoading } = familyState;
+
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [memberForModal, setMemberForModal] = useState(null);
@@ -172,36 +164,37 @@ const ChoresPage = () => {
     };
 
     const handleFilterChange = (memberId) => {
-        setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+        setSelectedMembers(prev =>
+            prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]
+        );
     };
 
-    if (choresLoading || familyLoading) {
-        return <div>Loading chores...</div>;
+    if (choresLoading || familyLoading || !family) {
+        return <div style={{padding: theme.spacing.lg}}>Loading chores...</div>;
     }
 
+    const currentUser = family.members.find(m => m.userId._id === user?.id);
+    const isParent = isAuthenticated && currentUser?.role === 'Parent/Guardian';
+    
+    const pendingChores = chores.filter(c => c.status === 'Pending Approval');
+    const otherChores = chores.filter(c => c.status !== 'Pending Approval');
+
     const sortByName = (a, b) => a.userId.displayName.localeCompare(b.userId.displayName);
-    const allMembers = familyState.family?.members || [];
+    const allMembers = family.members || [];
     const parents = allMembers.filter(m => m.role === 'Parent/Guardian').sort(sortByName);
     const children = allMembers.filter(m => m.role === 'Child').sort(sortByName);
     const sortedMembers = [...parents, ...children];
-    const membersToDisplay = sortedMembers.filter(member => selectedMembers.length === 0 || selectedMembers.includes(member.userId._id));
+
+    const membersToDisplay = sortedMembers.filter(member =>
+        selectedMembers.length === 0 || selectedMembers.includes(member.userId._id)
+    );
 
     return (
-        <div style={{ fontFamily: theme.typography.fontFamily }}>
-            {/* --- NEW: CSS for confetti animation --- */}
-            <style>{`
-                @keyframes confetti-burst {
-                    0% {
-                        opacity: 1;
-                        transform: translate(0, 0) rotate(0deg) scale(1);
-                    }
-                    100% {
-                        opacity: 0;
-                        transform: translate(calc(${Math.random() * 200 - 100}px), calc(${Math.random() * 200 - 100}px)) rotate(${Math.random() * 360}deg) scale(0);
-                    }
-                }
-            `}</style>
+        <div style={{ fontFamily: theme.typography.fontFamily, padding: theme.spacing.lg }}>
             <h1 style={{ ...theme.typography.h1, marginBottom: theme.spacing.md }}>Chores & Routines</h1>
+            
+            {isParent && <ApprovalQueue chores={pendingChores} />}
+
             <Card style={{ marginBottom: theme.spacing.lg }}>
                 <h3 style={{...theme.typography.h4, marginBottom: theme.spacing.sm}}>Filter by Member</h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm }}>
@@ -214,12 +207,13 @@ const ChoresPage = () => {
                     {selectedMembers.length > 0 && <Button variant="tertiary" onClick={() => setSelectedMembers([])}>Clear</Button>}
                 </div>
             </Card>
+
             <div style={{ display: 'flex', gap: theme.spacing.lg, overflowX: 'auto', paddingBottom: theme.spacing.md }}>
                 {membersToDisplay.map(member => (
                     <MemberChoreColumn
                         key={member.userId._id}
                         member={member}
-                        chores={choreState.chores}
+                        chores={otherChores}
                         onAddClick={handleAddClick}
                     />
                 ))}

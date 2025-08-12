@@ -1,13 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/pages/ListsPage.js
-// Purpose: The main UI for the Lists feature.
-//
-// --- Dev Notes (UI Modernization - Final Fix) ---
-// - BUG FIX: The "Create" button was misaligned with the text input field.
-// - SOLUTION: Added `alignItems: 'center'` to the form's flex container to ensure
-//   all child elements are vertically centered relative to each other. This is the
-//   most robust way to handle this type of alignment issue.
-// ===================================================================================
+// --- File: /frontend/src/pages/ListsPage.js ---
+// Displays all shared lists for the family.
+
 import React, { useState } from 'react';
 import { useLists } from '../context/ListContext';
 import ListComponent from '../components/lists/ListComponent';
@@ -38,6 +31,7 @@ const ListsPage = () => {
   const pageStyle = {
     fontFamily: theme.typography.fontFamily,
     color: theme.colors.textPrimary,
+    padding: theme.spacing.lg,
   };
 
   return (

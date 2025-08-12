@@ -1,45 +1,32 @@
-// ===================================================================================
-// File: /src/pages/AuthCallbackPage.js
-// Purpose: This page is the destination after a user successfully authenticates with
-// an external provider (like Google). It extracts the JWT from the URL query
-// parameters, uses the AuthContext to log the user in, and then redirects them
-// to the main application.
-// ===================================================================================
+// --- File: /frontend/src/pages/AuthCallbackPage.js ---
+// Handles the callback from Google OAuth, extracts the token, and logs the user in.
+
 import React, { useEffect, useContext } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const AuthCallbackPage = () => {
-  const [searchParams] = useSearchParams(); // Hook to read URL query parameters.
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { login, isAuthenticated } = useContext(AuthContext);
 
-  // This effect runs when the page loads to process the token.
+  // useEffect: On component mount, get the token from the URL and log in.
   useEffect(() => {
     const token = searchParams.get('token');
     if (token) {
-      // If a token is found, call the login function from AuthContext.
       login(token);
     } else {
-      // If no token is present, something went wrong, so redirect to login.
-      navigate('/login');
+      navigate('/login'); // Redirect to login if no token is found.
     }
   }, [searchParams, login, navigate]);
 
-  // This effect runs after the login state has been updated.
+  // useEffect: Once authenticated, navigate to the main dashboard.
   useEffect(() => {
-    // Once authenticated, redirect the user to the application's home page.
     if (isAuthenticated) {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
 
-  // Display a simple loading message while the process completes.
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p>Processing login...</p>
-    </div>
-  );
+  return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Processing login...</p></div>;
 };
-
 export default AuthCallbackPage;

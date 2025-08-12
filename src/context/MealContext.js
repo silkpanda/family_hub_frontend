@@ -1,22 +1,11 @@
-// ===================================================================================
-// File: /frontend/src/context/MealContext.js
-// Purpose: Manages all state and actions for the Meal Planner feature.
-//
-// --- Dev Notes (UPDATE) ---
-// - BUG FIX: The dashboard was not updating in real-time after the meal plan was changed.
-//   The previous "fire-and-forget" approach was not reliable.
-// - SOLUTION:
-//   - The `addRecipeToPlan` and `removeRecipeFromPlan` functions have been updated to
-//     await the API response from the service.
-//   - They now use this response to dispatch a `SET_MEAL_PLAN` action immediately,
-//     ensuring the UI updates instantly for the user performing the action.
-//   - The WebSocket listener remains in place to handle updates for other clients.
-// ===================================================================================
+// --- File: /frontend/src/context/MealContext.js ---
+// Manages state for recipes and the weekly meal plan.
+
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
 import MealService from '../services/meal.service.js';
 import { useLists } from './ListContext.js';
 import { AuthContext } from './AuthContext.js';
-import { socket } from './SocketContext.js';
+import { SocketContext } from './SocketContext.js';
 
 export const MealContext = createContext();
 
@@ -52,11 +41,11 @@ export const MealProvider = ({ children }) => {
   const [state, dispatch] = useReducer(mealReducer, initialState);
   const { actions: listActions } = useLists();
   const { isAuthenticated, isReady } = useContext(AuthContext);
+  const { socket } = useContext(SocketContext); // Get socket from context.
 
   useEffect(() => {
     if (socket) {
         const handlePlanUpdate = (updatedPlan) => {
-            console.log('[Socket] Received mealplan:updated', updatedPlan);
             dispatch({ type: actionTypes.SET_MEAL_PLAN, payload: updatedPlan });
         };
         socket.on('mealplan:updated', handlePlanUpdate);
@@ -64,7 +53,7 @@ export const MealProvider = ({ children }) => {
             socket.off('mealplan:updated', handlePlanUpdate);
         };
     }
-  }, []);
+  }, [socket]); // Add socket as a dependency.
 
   const fetchRecipes = useCallback(async () => {
       dispatch({ type: actionTypes.SET_RECIPES_LOADING });
@@ -111,7 +100,6 @@ export const MealProvider = ({ children }) => {
     }
   }, []);
 
-  // --- UPDATED --- Now provides instant UI feedback from the API response.
   const addRecipeToPlan = useCallback(async (planData) => {
       try {
           const updatedPlan = await MealService.addRecipeToPlan(planData);
@@ -121,7 +109,6 @@ export const MealProvider = ({ children }) => {
       }
   }, []);
 
-  // --- UPDATED --- Now provides instant UI feedback from the API response.
   const removeRecipeFromPlan = useCallback(async (planData) => {
       try {
           const updatedPlan = await MealService.removeRecipeFromPlan(planData);
@@ -131,9 +118,11 @@ export const MealProvider = ({ children }) => {
       }
   }, []);
 
+  // addIngredientsToList: Adds a recipe's ingredients to a specified shopping list.
   const addIngredientsToList = useCallback(async (recipeId, listId) => {
       try {
           await MealService.addIngredientsToList(recipeId, listId);
+          // Refetch lists to show the newly added items.
           if (listActions && listActions.fetchLists) {
               listActions.fetchLists();
           }

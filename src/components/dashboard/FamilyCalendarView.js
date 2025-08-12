@@ -1,16 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/components/dashboard/FamilyCalendarView.js
-// Purpose: Displays a horizontally scrollable view of each family member's daily schedule.
-//
-// --- Dev Notes (UPDATE) ---
-// - REFINEMENT: The component now organizes the display of family members.
-// - Members are filtered into `parents` and `children` arrays based on their role.
-// - REFINEMENT: Each role group is now sorted alphabetically by display name.
-// - A new `sortedMembers` array is created by concatenating these two groups,
-//   ensuring that Parents/Guardians are always displayed first, followed by Children,
-//   with each group alphabetized.
-// - The component now maps over this `sortedMembers` array to render the columns.
-// ===================================================================================
+// --- File: /frontend/src/components/dashboard/FamilyCalendarView.js ---
+// Displays a column-based view of today's events for each family member on the dashboard.
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { theme } from '../../theme/theme';
@@ -26,7 +16,7 @@ const MemberColumn = ({ member, events }) => {
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing.md,
-        textDecoration: 'none', // Remove underline from link
+        textDecoration: 'none',
         color: 'inherit'
     };
     const headerStyle = {
@@ -88,9 +78,7 @@ const FamilyCalendarView = ({ events, members }) => {
         paddingBottom: theme.spacing.md,
     };
 
-    // --- UPDATED: Sort members by role and then alphabetically ---
     const sortByName = (a, b) => a.userId.displayName.localeCompare(b.userId.displayName);
-
     const parents = members.filter(m => m.role === 'Parent/Guardian').sort(sortByName);
     const children = members.filter(m => m.role === 'Child').sort(sortByName);
     const sortedMembers = [...parents, ...children];

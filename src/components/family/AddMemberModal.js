@@ -1,10 +1,9 @@
-// ===================================================================================
-// File: /frontend/src/components/family/AddMemberModal.js
-// Purpose: The modal dialog for adding new members to a family.
-// ===================================================================================
+// --- File: /frontend/src/components/family/AddMemberModal.js ---
+// A modal for adding a new member to the family.
+
 import React, { useState, useContext } from 'react';
 import { FamilyContext } from '../../context/FamilyContext';
-import { theme } from '../../theme/theme'; // <--- CORRECTED PATH
+import { theme } from '../../theme/theme';
 import Button from '../shared/Button';
 import InputField from '../shared/InputField';
 import Card from '../shared/Card';
@@ -16,15 +15,11 @@ const GOOGLE_CALENDAR_COLORS = [
 
 const AddMemberModal = ({ onClose }) => {
     const { actions } = useContext(FamilyContext);
-    const { addFamilyMember } = actions; 
-
-    console.log('[AddMemberModal] FamilyContext actions:', actions);
-    console.log('[AddMemberModal] addFamilyMember function:', addFamilyMember);
-
+    const { addFamilyMember } = actions;
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [role, setRole] = useState('Child');
-    const [color, setColor] = useState(GOOGLE_CALENDAR_COLORS[0]); 
+    const [color, setColor] = useState(GOOGLE_CALENDAR_COLORS[0]);
     const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
@@ -32,17 +27,11 @@ const AddMemberModal = ({ onClose }) => {
         setError('');
         try {
             const memberData = { name, role, color, ...(role === 'Parent/Guardian' && email && { email }) };
-            
-            if (typeof addFamilyMember === 'function') {
-                console.log('[AddMemberModal] Calling addFamilyMember with:', memberData);
+            if (addFamilyMember) {
                 await addFamilyMember(memberData);
-                onClose(); 
-            } else {
-                console.error('[AddMemberModal] Error: addFamilyMember is not a function or is undefined.');
-                setError('Internal error: Failed to add member function not found.');
+                onClose();
             }
         } catch (err) {
-            console.error('[AddMemberModal] Error caught in handleSubmit:', err);
             setError(err.response?.data?.message || err.message || 'Failed to add member.');
         }
     };
@@ -58,7 +47,7 @@ const AddMemberModal = ({ onClose }) => {
                     <InputField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
                     <div style={{ marginBottom: theme.spacing.md }}>
                         <label style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>Role</label>
-                        <select value={role} onChange={(e) => setRole(e.target.value)} style={{ width: '100%', padding: theme.spacing.sm, marginTop: theme.spacing.xs, border: '2px solid #ccc', borderRadius: theme.spacing.sm }}>
+                        <select value={role} onChange={(e) => setRole(e.target.value)} style={{ width: '100%', padding: theme.spacing.sm, marginTop: theme.spacing.xs, border: '1px solid #EAECEE', borderRadius: theme.borderRadius.medium, backgroundColor: theme.colors.neutralBackground, height: '44px' }}>
                             <option value="Child">Child</option>
                             <option value="Parent/Guardian">Parent/Guardian</option>
                         </select>

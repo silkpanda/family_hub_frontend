@@ -1,42 +1,58 @@
-// ===================================================================================
-// File: /frontend/src/context/SocketContext.js
-// Purpose: Creates and provides a single, stable WebSocket connection for the
-// entire application.
-// ===================================================================================
-import React, { createContext } from 'react';
-import { io } from 'socket.io-client';
+// --- File: /frontend/src/context/SocketContext.js ---
+// Establishes and provides a global WebSocket connection using Socket.IO.
 
-// The socket URL is determined from environment variables.
-const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-// Remove the '/api' suffix if present, as Socket.IO connects to the root URL of the server
-const socketIoUrl = backendUrl.replace('/api', '');
+import React, { createContext, useEffect, useState } from 'react';
+import io from 'socket.io-client';
 
-// The socket instance is created *outside* the React component. This is a critical
-// design choice to ensure that only ONE connection is ever created for the entire
-// application lifecycle, preventing issues with React's Strict Mode and re-renders.
-export const socket = io(socketIoUrl, {
-  autoConnect: true,
-  transports: ['websocket', 'polling'] // Ensure WebSocket is preferred
+// **BUG FIX:** The REACT_APP_API_URL includes '/api', which is correct for HTTP requests
+// but incorrect for the base Socket.IO connection. The socket server listens on the root.
+// This fix removes the '/api' suffix if it exists, ensuring the client connects to the correct URL.
+const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5001').replace('/api', '');
+console.log('[SocketContext] Attempting to connect to socket server at:', baseUrl);
+
+const socket = io(baseUrl, {
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
 });
 
-// Log socket connection status for debugging
-socket.on('connect', () => {
-  console.log('[SocketContext] Socket connected with ID:', socket.id);
-});
-socket.on('disconnect', () => {
-  console.log('[SocketContext] Socket disconnected.');
-});
-socket.on('connect_error', (err) => {
-  console.error('[SocketContext] Socket connection error:', err.message);
-});
+console.log('[SocketContext] Socket instance created:', socket);
 
 export const SocketContext = createContext();
 
-// The provider's only job is to make the single socket instance available to the app.
 export const SocketProvider = ({ children }) => {
-  return (
-    <SocketContext.Provider value={socket}>
-      {children}
-    </SocketContext.Provider>
-  );
+    const [isConnected, setIsConnected] = useState(socket.connected);
+
+    useEffect(() => {
+        // The provider's role is to listen for connection status changes
+        // and provide the socket instance to its children.
+
+        socket.on('connect', () => {
+            console.log('[SocketContext] Socket connected successfully with ID:', socket.id);
+            setIsConnected(true);
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('[SocketContext] Socket disconnected:', reason);
+            setIsConnected(false);
+        });
+
+        socket.on('connect_error', (err) => {
+            // This is the error we are trying to diagnose.
+            console.error('[SocketContext] Socket connection error:', err);
+            setIsConnected(false);
+        });
+
+        // Cleanup function to remove listeners when the provider unmounts.
+        return () => {
+            socket.off('connect');
+            socket.off('disconnect');
+            socket.off('connect_error');
+        };
+    }, []);
+
+    return (
+        <SocketContext.Provider value={{ socket, isConnected }}>
+            {children}
+        </SocketContext.Provider>
+    );
 };

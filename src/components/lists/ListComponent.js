@@ -1,13 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/components/lists/ListComponent.js
-// Purpose: Renders an individual shared list and its items, now with list-level assignment.
-//
-// --- Dev Notes (UPDATE) ---
-// - `ListItem`: No longer contains any assignment logic. It's a simpler component now.
-// - `ListAssigneeManager`: A new component added to the header of the list. It displays
-//   avatars of assigned members and includes a dropdown menu to modify the assignments.
-// - `ListComponent`: The "Add Item" form no longer has an assignment dropdown.
-// ===================================================================================
+// --- File: /frontend/src/components/lists/ListComponent.js ---
+// A component that renders a single shared list with its items and controls.
+
 import React, { useState, useContext } from 'react';
 import { useLists } from '../../context/ListContext';
 import { useFamily } from '../../context/FamilyContext';
@@ -33,11 +26,16 @@ const ListItem = ({ item, listId }) => {
   );
 };
 
+// ListAssigneeManager: A popover menu for assigning family members to a list.
 const ListAssigneeManager = ({ list }) => {
     const { actions } = useLists();
     const { assignList } = actions;
     const { state: familyState } = useFamily();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    if (!familyState.family || !Array.isArray(familyState.family.members)) {
+        return null;
+    }
 
     const assignedMemberIds = list.assignedTo.map(m => m._id);
 

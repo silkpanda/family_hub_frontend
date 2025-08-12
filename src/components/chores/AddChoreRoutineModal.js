@@ -1,13 +1,6 @@
-// ===================================================================================
-// File: /frontend/src/components/chores/AddChoreRoutineModal.js
-// Purpose: A modal for creating a new chore or a new routine for a specific user.
-//
-// --- Dev Notes (UPDATE) ---
-// - When creating a routine, the form now includes a required dropdown to select
-//   a category: 'Morning', 'Day', or 'Night'.
-// - The selected `routineCategory` is now included in the data payload sent to
-//   the `createChore` action.
-// ===================================================================================
+// --- File: /frontend/src/components/chores/AddChoreRoutineModal.js ---
+// A modal for adding a new chore or routine for a specific family member.
+
 import React, { useState } from 'react';
 import { useChores } from '../../context/ChoreContext';
 import { theme } from '../../theme/theme';
@@ -73,7 +66,7 @@ const AddChoreRoutineModal = ({ member, onClose }) => {
                         {isRoutine && (
                             <div style={{ marginBottom: theme.spacing.md }}>
                                 <label style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>Category</label>
-                                <select name="routineCategory" value={formData.routineCategory} onChange={handleChange} style={{ width: '100%', padding: theme.spacing.sm, marginTop: theme.spacing.xs, border: '2px solid #ccc', borderRadius: theme.spacing.sm }}>
+                                <select name="routineCategory" value={formData.routineCategory} onChange={handleChange} style={{ width: '100%', padding: theme.spacing.sm, marginTop: theme.spacing.xs, border: '1px solid #EAECEE', borderRadius: theme.borderRadius.medium, backgroundColor: theme.colors.neutralBackground }}>
                                     <option value="Morning">Morning</option>
                                     <option value="Day">Day</option>
                                     <option value="Night">Night</option>

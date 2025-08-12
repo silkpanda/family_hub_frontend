@@ -1,30 +1,26 @@
-// ===================================================================================
-// File: /frontend/src/pages/ManageFamilyPage.js
-// Purpose: The UI for managing family members and settings.
-//
-// --- Dev Notes (UPDATE) ---
-// - REFINEMENT: The family members list has been reorganized.
-// - Members are now filtered into two separate sections with headings for "Parents/Guardians"
-//   and "Children", making the roles clearer and the page more organized.
-// - REFINEMENT: Each member's row is now a clickable link that navigates to that
-//   member's profile page, creating a consistent navigation experience with the dashboard.
-// ===================================================================================
+// --- File: /frontend/src/pages/ManageFamilyPage.js ---
+// Allows parents to manage family members, edit the family name, and set PINs.
+
 import React, { useContext, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; // --- NEW ---
+import { Link } from 'react-router-dom';
 import { FamilyContext } from '../context/FamilyContext';
+import { AuthContext } from '../context/AuthContext';
 import Card from '../components/shared/Card';
 import Button from '../components/shared/Button';
 import InputField from '../components/shared/InputField';
 import AddMemberModal from '../components/family/AddMemberModal';
 import EditMemberModal from '../components/family/EditMemberModal';
+import SetPinModal from '../components/family/SetPinModal';
 import { theme } from '../theme/theme';
 
 const ManageFamilyPage = () => {
     const { state, actions } = useContext(FamilyContext);
+    const { user } = useContext(AuthContext);
     const { family, loading } = state;
     const { updateFamilyName } = actions;
-    const [isAddModalOpen, setIsAddModal] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingMember, setEditingMember] = useState(null);
+    const [pinMember, setPinMember] = useState(null);
     const [familyNameInput, setFamilyNameInput] = useState('');
     const [isEditingName, setIsEditingName] = useState(false);
 
@@ -34,12 +30,8 @@ const ManageFamilyPage = () => {
         }
     }, [family]);
 
-    if (loading) {
+    if (loading || !family || !Array.isArray(family.members)) {
         return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Loading family details...</p></div>;
-    }
-    
-    if (!family) {
-        return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>No family found.</p></div>;
     }
     
     const handleNameSave = async () => { 
@@ -49,30 +41,41 @@ const ManageFamilyPage = () => {
         }
     };
 
-    const parents = family.members.filter(m => m.role === 'Parent/Guardian');
-    const children = family.members.filter(m => m.role === 'Child');
+    const members = family.members;
+    const parents = members.filter(m => m.role === 'Parent/Guardian');
+    const children = members.filter(m => m.role === 'Child');
     
     const pageStyle = { padding: theme.spacing.lg, fontFamily: theme.typography.fontFamily };
     const headerStyle = { ...theme.typography.h2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md };
     const sectionHeaderStyle = { ...theme.typography.h4, color: theme.colors.textPrimary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.md, borderBottom: `2px solid ${theme.colors.neutralBackground}`, paddingBottom: theme.spacing.sm };
 
-    const MemberRow = ({ member }) => (
-        <Link to={`/profile/${member.userId._id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.sm, borderRadius: theme.borderRadius.medium, transition: 'background-color 0.2s ease' }} 
-                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.neutralBackground}
-                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: member.color, marginRight: theme.spacing.md }}></div>
-                    <div>
-                        <p style={{ ...theme.typography.body, fontWeight: '600' }}>{member.userId.displayName}</p>
-                        <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>{member.role}</p>
+    // MemberRow: Renders a single family member with action buttons.
+    const MemberRow = ({ member }) => {
+        const isCurrentUser = member.userId._id === user.id;
+        const isParent = member.role === 'Parent/Guardian';
+        return (
+            <Link to={`/profile/${member.userId._id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.sm, borderRadius: theme.borderRadius.medium, transition: 'background-color 0.2s ease' }} 
+                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.neutralBackground}
+                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: member.color, marginRight: theme.spacing.md }}></div>
+                        <div>
+                            <p style={{ ...theme.typography.body, fontWeight: '600' }}>{member.userId.displayName}</p>
+                            <p style={{ ...theme.typography.caption, color: theme.colors.textSecondary }}>{member.role}</p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+                        {isCurrentUser && isParent && (
+                            <Button variant="tertiary" onClick={(e) => { e.preventDefault(); setPinMember(member); }}>Set PIN</Button>
+                        )}
+                        <Button variant="tertiary" onClick={(e) => { e.preventDefault(); setEditingMember(member); }}>Edit</Button>
                     </div>
                 </div>
-                <Button variant="tertiary" onClick={(e) => { e.preventDefault(); setEditingMember(member); }}>Edit</Button>
-            </div>
-        </Link>
-    );
+            </Link>
+        );
+    };
 
     return (
         <div style={pageStyle}>
@@ -110,8 +113,9 @@ const ManageFamilyPage = () => {
                     )}
                 </div>
             </Card>
-            {isAddModalOpen && <AddMemberModal onClose={() => setIsAddModal(false)} />}
+            {isAddModalOpen && <AddMemberModal onClose={() => setIsAddModalOpen(false)} />}
             {editingMember && <EditMemberModal member={editingMember} onClose={() => setEditingMember(null)} />}
+            {pinMember && <SetPinModal member={pinMember} onClose={() => setPinMember(null)} />}
         </div>
     );
 };
