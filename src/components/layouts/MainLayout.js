@@ -1,67 +1,62 @@
-import React, { useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
-import { HouseholdContext } from '../../context/HouseholdContext';
-import DashboardPage from '../../pages/DashboardPage';
-import TasksPage from '../../pages/TasksPage';
-import CalendarPage from '../../pages/CalendarPage';
-import ManageHouseholdPage from '../../pages/ManageHouseholdPage';
-import StorePage from '../../pages/StorePage';
-import MealPlannerPage from '../../pages/MealPlannerPage';
-import Button from '../ui/Button';
+import React from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
-const MainLayout = ({ currentView, setCurrentView, onSelectMember, activeMemberId }) => {
-    const { session, fullLogout, lockSession, isParentSession } = useContext(AuthContext);
-    const { householdData } = useContext(HouseholdContext);
+// Define icons for navigation links for a better UI
+const navLinks = [
+    { to: '/dashboard', text: 'Dashboard', icon: '🏠' },
+    { to: '/tasks', text: 'Tasks', icon: '✔️' },
+    { to: '/calendar', text: 'Calendar', icon: '📅' },
+    { to: '/meal-planner', text: 'Meal Planner', icon: '🍲' },
+    { to: '/store', text: 'Store', icon: '🛒' },
+    { to: '/manage-household', text: 'Settings', icon: '⚙️' },
+];
 
-    const renderView = () => {
-        switch (currentView) {
-            case 'tasks':
-                return <TasksPage />;
-            case 'calendar':
-                return <CalendarPage />;
-            case 'manage':
-                return <ManageHouseholdPage />;
-            case 'store':
-                return <StorePage activeMemberId={activeMemberId} />;
-            case 'meal-planner':
-                return <MealPlannerPage />;
-            case 'dashboard':
-            default:
-                return <DashboardPage onSelectMember={onSelectMember} />;
-        }
+const MainLayout = () => {
+    const { fullLogout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        fullLogout();
+        navigate('/login');
     };
 
-    const navButtonStyle = "font-semibold py-2 px-4 rounded-md transition-all duration-200 ease-in-out";
-    const activeNavButtonStyle = "bg-indigo-600 text-white shadow-md";
-    const inactiveNavButtonStyle = "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900";
-
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow-sm p-4 border-b border-gray-200">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-800">{householdData.household?.name || 'FamiliFlow'}</h1>
-                        <p className="text-sm text-gray-500">Welcome, {session.user?.displayName || 'User'}</p>
-                    </div>
-                    <nav className="flex items-center space-x-2">
-                        <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-lg">
-                            <button onClick={() => setCurrentView('dashboard')} className={`${navButtonStyle} ${currentView === 'dashboard' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>Dashboard</button>
-                            <button onClick={() => setCurrentView('tasks')} className={`${navButtonStyle} ${currentView === 'tasks' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>Tasks</button>
-                            <button onClick={() => setCurrentView('calendar')} className={`${navButtonStyle} ${currentView === 'calendar' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>Calendar</button>
-                            <button onClick={() => setCurrentView('meal-planner')} className={`${navButtonStyle} ${currentView === 'meal-planner' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>Meal Plan</button>
-                            <button onClick={() => setCurrentView('store')} className={`${navButtonStyle} ${currentView === 'store' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>Store</button>
-                            <button onClick={() => setCurrentView('manage')} className={`${navButtonStyle} ${currentView === 'manage' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>Household</button>
-                        </div>
-                        <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                        {isParentSession && (<Button onClick={lockSession} className="bg-yellow-400 text-yellow-900 hover:bg-yellow-500">Lock</Button>)}
-                        <Button onClick={fullLogout} variant="danger">Log Out</Button>
-                    </nav>
-                </div>
-            </header>
-            <main className="p-4 sm:p-8">
-                <div className="max-w-7xl mx-auto">
-                    {renderView()}
-                </div>
+        <div className="flex h-screen bg-gray-100 font-sans">
+            {/* Sidebar Navigation */}
+            <aside className="w-64 flex-shrink-0 bg-gray-800 text-white flex flex-col p-4">
+                <h1 className="text-2xl font-bold text-center mb-8 border-b border-gray-700 pb-4">
+                    FamiliFlow
+                </h1>
+                <nav className="flex-grow">
+                    {navLinks.map((link) => (
+                        <NavLink
+                            key={link.to}
+                            to={link.to}
+                            className={({ isActive }) =>
+                                `flex items-center px-4 py-3 my-1 rounded-lg transition-colors duration-200 hover:bg-gray-700 ${
+                                    isActive ? 'bg-indigo-600' : ''
+                                }`
+                            }
+                        >
+                            <span className="mr-3 text-lg">{link.icon}</span>
+                            <span className="font-medium">{link.text}</span>
+                        </NavLink>
+                    ))}
+                </nav>
+                <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-center px-4 py-3 mt-4 rounded-lg bg-red-600 hover:bg-red-700 transition-colors duration-200"
+                >
+                    <span className="mr-2">🚪</span>
+                    <span className="font-bold">Logout</span>
+                </button>
+            </aside>
+
+            {/* Main Content Area */}
+            <main className="flex-1 p-6 md:p-10 overflow-y-auto">
+                {/* Outlet is a placeholder from react-router-dom where the child route component will be rendered */}
+                <Outlet />
             </main>
         </div>
     );
