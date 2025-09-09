@@ -1,79 +1,52 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { AuthContext } from './context/AuthContext';
-import { ModalContext } from './context/ModalContext';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext'; // Import the SocketProvider
+import { HouseholdProvider } from './context/HouseholdContext';
+import { ModalProvider } from './context/ModalContext';
 import LoginPage from './pages/LoginPage';
-import KioskPage from './pages/KioskPage';
-import MainLayout from './components/layouts/MainLayout';
-import MemberProfilePage from './pages/MemberProfilePage';
-import StorePage from './pages/StorePage'; // Import StorePage here
+import DashboardPage from './pages/DashboardPage';
+import ManageHouseholdPage from './pages/ManageHouseholdPage';
+import TasksPage from './pages/TasksPage';
+import CalendarPage from './pages/CalendarPage';
+import StorePage from './pages/StorePage';
+import MealPlannerPage from './pages/MealPlannerPage';
+import PrivateRoute from './components/auth/PrivateRoute';
+import MainLayout from './components/layout/MainLayout';
+import './styles/main.css';
 
-function App() {
-    const { session } = useContext(AuthContext);
-    const { showModal } = useContext(ModalContext);
-    const [pinSetupInitiated, setPinSetupInitiated] = useState(false);
-    const [viewingMemberId, setViewingMemberId] = useState(null);
-    const [currentView, setCurrentView] = useState('dashboard');
-
-    useEffect(() => {
-        if (session.user && session.user.role === 'parent' && !session.user.pinIsSet && !pinSetupInitiated) {
-            showModal('pin', { mode: 'setup' });
-            setPinSetupInitiated(true);
-        }
-    }, [session.user, showModal, pinSetupInitiated]);
-
-    const navigateTo = (view, memberId = null) => {
-        setCurrentView(view);
-        setViewingMemberId(memberId);
-    };
-
-    // --- View Rendering Logic ---
-
-    if (session.mode === 'loading') {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-    }
-
-    if (session.mode === 'logged-out') {
-        return <LoginPage />;
-    }
-
-    // Kiosk Mode Views
-    if (session.mode === 'kiosk') {
-        if (currentView === 'profile' && viewingMemberId) {
-            return <MemberProfilePage 
-                        memberId={viewingMemberId} 
-                        onBack={() => navigateTo('kiosk')} 
-                        onGoToStore={() => navigateTo('store', viewingMemberId)} 
-                    />;
-        }
-        if (currentView === 'store' && viewingMemberId) {
-            return <StorePage 
-                        activeMemberId={viewingMemberId} 
-                        onBack={() => navigateTo('profile', viewingMemberId)} 
-                    />;
-        }
-        // Default Kiosk view
-        return <KioskPage onSelectMember={(id) => navigateTo('profile', id)} />;
-    }
-
-    // Parent Mode Views
-    if (session.mode === 'parent') {
-        if (currentView === 'profile' && viewingMemberId) {
-            return <MemberProfilePage 
-                        memberId={viewingMemberId} 
-                        onBack={() => navigateTo('dashboard')} 
-                        onGoToStore={() => navigateTo('store', viewingMemberId)} 
-                    />;
-        }
-        // Default Parent view is the MainLayout
-        return <MainLayout 
-                    currentView={currentView} 
-                    setCurrentView={setCurrentView} 
-                    onSelectMember={(id) => navigateTo('profile', id)}
-                    activeMemberId={viewingMemberId}
-                />;
-    }
-    
-    return <LoginPage />;
-}
+const App = () => {
+    return (
+        <Router>
+            <SocketProvider>
+                <AuthProvider>
+                    <HouseholdProvider>
+                        <ModalProvider>
+                            <Routes>
+                                <Route path="/login" element={<LoginPage />} />
+                                <Route
+                                    path="/"
+                                    element={
+                                        <PrivateRoute>
+                                            <MainLayout />
+                                        </PrivateRoute>
+                                    }
+                                >
+                                    <Route index element={<Navigate to="/dashboard" />} />
+                                    <Route path="dashboard" element={<DashboardPage />} />
+                                    <Route path="manage-household" element={<ManageHouseholdPage />} />
+                                    <Route path="tasks" element={<TasksPage />} />
+                                    <Route path="calendar" element={<CalendarPage />} />
+                                    <Route path="store" element={<StorePage />} />
+                                    <Route path="meal-planner" element={<MealPlannerPage />} />
+                                </Route>
+                            </Routes>
+                        </ModalProvider>
+                    </HouseholdProvider>
+                </AuthProvider>
+            </SocketProvider>
+        </Router>
+    );
+};
 
 export default App;
