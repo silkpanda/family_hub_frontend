@@ -1,81 +1,108 @@
-// --- File: /frontend/src/context/AuthContext.js ---
-// Manages authentication state, including user info, tokens, and login/logout functions.
-
-import React, { createContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { jwtDecode } from 'jwt-decode';
-import { authService } from '../services/auth.service';
+import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { io } from "socket.io-client";
+import { api } from '../api/api';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isReady, setIsReady] = useState(false);
+    const [session, setSession] = useState({ user: null, mode: 'loading', socket: null, activeHouseholdId: null });
+    const isParentSession = session.mode === 'parent';
 
-    const login = useCallback((token) => {
-        localStorage.setItem('authToken', token);
-        const decoded = jwtDecode(token);
-        setUser(decoded);
-        setIsAuthenticated(true);
-    }, []);
-
-    // **NEW FUNCTION:** Ends the parent session and returns to Kiosk Mode.
-    const parentLogout = useCallback((navigate) => {
-        localStorage.removeItem('authToken');
-        // We keep the user object but set isAuthenticated to false.
-        setIsAuthenticated(false);
-        if (navigate) {
-            navigate('/'); // Navigate to the dashboard, which will now be in Kiosk mode.
-        }
-    }, []);
-
-    // **RENAMED FUNCTION:** Fully logs the user out of the application.
-    const fullLogout = useCallback((navigate) => {
-        localStorage.removeItem('authToken');
-        setUser(null);
-        setIsAuthenticated(false);
-        // The router in App.js will automatically redirect to /login.
-        if (navigate) {
-            navigate('/login');
-        }
-    }, []);
-
-    const loginWithPin = useCallback(async (memberId, pin) => {
-        try {
-            const { token } = await authService.loginWithPin(memberId, pin);
-            if (token) {
-                login(token);
-            }
-        } catch (error) {
-            console.error("PIN Login failed:", error);
-            throw error;
-        }
-    }, [login]);
+    const fullLogout = useCallback(() => {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('active_household_id');
+        if (session.socket) session.socket.disconnect();
+        setSession({ user: null, mode: 'logged-out', socket: null, activeHouseholdId: null });
+    }, [session.socket]);
 
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-            try {
-                const decoded = jwtDecode(token);
-                if (decoded.exp * 1000 > Date.now()) {
-                    login(token);
-                } else {
-                    fullLogout(); // Use fullLogout if the token is expired.
-                }
-            } catch (error) {
-                fullLogout();
-            }
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token');
+        
+        if (tokenFromUrl) {
+            localStorage.setItem('jwt_token', tokenFromUrl);
+            window.history.replaceState({}, document.title, "/");
         }
-        setIsReady(true);
-    }, [login, fullLogout]);
 
-    const contextValue = useMemo(() => ({
-        user, isAuthenticated, isReady, login, parentLogout, fullLogout, loginWithPin
-    }), [user, isAuthenticated, isReady, login, parentLogout, fullLogout, loginWithPin]);
+        const validateSession = async () => {
+            const token = localStorage.getItem('jwt_token');
+            if (token) {
+                try {
+                    const user = await api.get('/auth/session');
+                    if (!user) throw new Error("User data not received.");
+                    
+                    const socket = io('http://localhost:5000');
+                    
+                    let activeHouseholdId = null;
+                    if (user.households && user.households.length > 0) {
+                        const lastActiveId = localStorage.getItem('active_household_id');
+                        const householdIds = user.households.map(h => h._id || h);
+                        activeHouseholdId = householdIds.includes(lastActiveId) ? lastActiveId : householdIds[0];
+                        
+                        if (activeHouseholdId) {
+                            localStorage.setItem('active_household_id', activeHouseholdId);
+                            socket.emit('joinHouseholdRoom', activeHouseholdId);
+                        }
+                    }
+                    
+                    setSession({ user, mode: 'kiosk', socket, activeHouseholdId });
+                } catch (error) {
+                    console.error("Session validation failed:", error);
+                    fullLogout();
+                }
+            } else {
+                setSession({ user: null, mode: 'logged-out', socket: null, activeHouseholdId: null });
+            }
+        };
 
-    return (
-        <AuthContext.Provider value={contextValue}>
-            {children}
-        </AuthContext.Provider>
-    );
+        validateSession();
+    // CORRECTED: The dependency array is now empty, so this effect will only run once.
+    }, []);
+
+    const refreshSession = useCallback(async () => {
+        try {
+            const user = await api.get('/auth/session');
+            let activeHouseholdId = session.activeHouseholdId;
+            if (user.households && user.households.length > 0) {
+                const lastActiveId = localStorage.getItem('active_household_id');
+                const householdIds = user.households.map(h => h._id || h);
+                activeHouseholdId = householdIds.includes(lastActiveId) ? lastActiveId : householdIds[0];
+                if(activeHouseholdId) {
+                    localStorage.setItem('active_household_id', activeHouseholdId);
+                }
+            }
+            setSession(s => ({ ...s, user, activeHouseholdId }));
+        } catch (error) {
+            console.error("Failed to refresh session:", error);
+            fullLogout();
+        }
+    }, [fullLogout, session.activeHouseholdId]);
+
+    const setPin = useCallback(async (pin) => {
+        try {
+            await api.post('/auth/pin/set', { pin });
+            await refreshSession();
+            return true;
+        } catch (error) {
+            return error.message || "An unknown error occurred.";
+        }
+    }, [refreshSession]);
+    
+    const googleLogin = useCallback(() => { window.location.href = `http://localhost:5000/api/auth/google`; }, []);
+
+    const pinLogin = useCallback(async (pin) => {
+        try {
+            await api.post('/auth/pin/login', { pin });
+            setSession(s => ({ ...s, mode: 'parent' }));
+            return true;
+        } catch (e) { return false; }
+    }, []);
+
+    const lockSession = useCallback(() => { setSession(s => ({ ...s, mode: 'kiosk' })); }, []);
+
+    const value = useMemo(() => ({
+        session, isParentSession, googleLogin, pinLogin, lockSession, fullLogout, refreshSession, setPin
+    }), [session, isParentSession, googleLogin, pinLogin, lockSession, fullLogout, refreshSession, setPin]);
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

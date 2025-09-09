@@ -1,108 +1,74 @@
-// --- File: /frontend/src/pages/CalendarPage.js ---
-// Renders the main calendar view using the FullCalendar library.
-
-import React, { useState, useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
+import { CalendarContext } from '../context/CalendarContext';
+import { ModalContext } from '../context/ModalContext';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import { useCalendar } from '../context/CalendarContext';
-import EventModal from '../components/calendar/EventModal';
-import { theme } from '../theme/theme';
+import interactionPlugin from "@fullcalendar/interaction";
 
 const CalendarPage = () => {
-  const { state, actions } = useCalendar();
-  const { events, loading } = state;
-  const { updateEvent } = actions;
+    const { events, loading, addEvent, updateEvent, deleteEvent } = useContext(CalendarContext);
+    const { showModal } = useContext(ModalContext);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [selectedDateInfo, setSelectedDateInfo] = useState(null);
-  const [modalPosition, setModalPosition] = useState(null);
+    const calendarEvents = useMemo(() => events.map(event => ({
+        id: event._id, // FullCalendar needs a unique ID for event manipulation
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        allDay: event.allDay,
+        extendedProps: { ...event }
+    })), [events]);
 
-  // Memoize the transformation of backend events into FullCalendar's event format.
-  const calendarEvents = useMemo(() => {
-    if (!events) return [];
-    return events.map(event => ({
-      id: event._id,
-      title: event.title,
-      start: event.startTime,
-      end: event.endTime,
-      allDay: event.isAllDay,
-      backgroundColor: event.color,
-      borderColor: event.color,
-      extendedProps: event
-    }));
-  }, [events]);
-
-  // handleDateSelect: Opens the modal to create a new event when a date is clicked.
-  const handleDateSelect = (selectInfo) => {
-    const rect = selectInfo.jsEvent.target.getBoundingClientRect();
-    setModalPosition({ top: rect.top, left: rect.left, right: rect.right });
-    setSelectedEvent(null); 
-    setSelectedDateInfo(selectInfo);
-    setIsModalOpen(true);
-  };
-  
-  // handleEventClick: Opens the modal to edit an existing event when it's clicked.
-  const handleEventClick = (clickInfo) => {
-    const rect = clickInfo.el.getBoundingClientRect();
-    setModalPosition({ top: rect.top, left: rect.left, right: rect.right });
-    setSelectedDateInfo(null);
-    setSelectedEvent(clickInfo.event.extendedProps);
-    setIsModalOpen(true);
-  };
-  
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedEvent(null);
-    setSelectedDateInfo(null);
-    setModalPosition(null);
-  };
-
-  // handleEventDrop: Handles drag-and-drop functionality to update event times.
-  const handleEventDrop = (dropInfo) => {
-    const { event } = dropInfo;
-    if (!event.start || !event.end) {
-      dropInfo.revert(); // Revert the drop if times are invalid.
-      return;
-    }
-    const assignedToIds = event.extendedProps.assignedTo
-      ? event.extendedProps.assignedTo.map(member => member._id || member.userId._id || member)
-      : [];
-    const updatedEventData = {
-      title: event.extendedProps.title,
-      description: event.extendedProps.description,
-      isAllDay: event.extendedProps.isAllDay,
-      startTime: event.start.toISOString(),
-      endTime: event.end.toISOString(),
-      assignedTo: assignedToIds,
+    const handleSaveEvent = async (eventData, eventId) => {
+        if (eventId) {
+            await updateEvent(eventId, eventData);
+        } else {
+            await addEvent(eventData);
+        }
     };
-    if(updateEvent) updateEvent(event.id, updatedEventData);
-  };
 
-  if (loading) { return <div style={{padding: theme.spacing.lg}}>Loading Calendar...</div>; }
+    const handleDeleteEvent = (eventId) => {
+        // --- Detailed Logging ---
+        console.log(`[CalendarPage.js] - handleDeleteEvent function called for eventId: ${eventId}`);
+        if (deleteEvent) {
+            deleteEvent(eventId);
+        }
+    };
 
-  return (
-    <div style={{ fontFamily: theme.typography.fontFamily, color: theme.colors.textPrimary, padding: theme.spacing.lg }}>
-      <h1 style={{ ...theme.typography.h1, marginBottom: theme.spacing.lg }}>Calendar</h1>
-      <div className="calendar-container" style={{ backgroundColor: theme.colors.neutralSurface, padding: theme.spacing.md, borderRadius: theme.borderRadius.large }}>
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
-            initialView="dayGridMonth"
-            events={calendarEvents}
-            selectable={true}
-            select={handleDateSelect}
-            eventClick={handleEventClick}
-            editable={true}
-            eventDrop={handleEventDrop}
-            height="auto"
-          />
-      </div>
-      {isModalOpen && (<EventModal event={selectedEvent} dateInfo={selectedDateInfo} onClose={closeModal} position={modalPosition} />)}
-    </div>
-  );
+    const handleDateSelect = (selectInfo) => {
+        showModal('addEditEvent', {
+            selectedDate: selectInfo.startStr,
+            onSave: handleSaveEvent,
+        });
+    };
+
+    const handleEventClick = (clickInfo) => {
+        showModal('addEditEvent', {
+            eventToEdit: clickInfo.event.extendedProps,
+            onSave: handleSaveEvent,
+            onDelete: handleDeleteEvent,
+        });
+    };
+
+    if (loading) {
+        return <div className="text-center p-8">Loading calendar events...</div>;
+    }
+
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">Shared Calendar</h2>
+            <FullCalendar
+                plugins={[dayGridPlugin, interactionPlugin]}
+                initialView="dayGridMonth"
+                headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek,dayGridDay' }}
+                events={calendarEvents}
+                selectable={true}
+                select={handleDateSelect}
+                eventClick={handleEventClick}
+                height="auto"
+            />
+        </div>
+    );
 };
 
 export default CalendarPage;
+

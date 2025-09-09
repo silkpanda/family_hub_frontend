@@ -1,23 +1,22 @@
-// --- File: /frontend/src/pages/LoginPage.js ---
-// A simple login page that initiates the Google OAuth flow.
-
-import React from 'react';
+import React, { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
 
 const LoginPage = () => {
-  const handleGoogleLogin = () => {
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-    window.location.href = `${apiUrl}/auth/google`;
-  };
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
-        <h1>Welcome to Family Hub</h1>
-        <p>Sign in with your Google account to continue.</p>
-        <button onClick={handleGoogleLogin}>
-          Sign in with Google
-        </button>
-      </div>
-    </div>
-  );
+    const { googleLogin } = useContext(AuthContext);
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
+            <Card className="w-full max-w-sm mx-auto p-8 text-center">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">FamiliFlow</h1>
+                <p className="text-gray-500 mb-8">Get your family in sync.</p>
+                <Button onClick={googleLogin} className="w-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center">
+                    Sign In with Google
+                </Button>
+            </Card>
+        </div>
+    );
 };
+
 export default LoginPage;

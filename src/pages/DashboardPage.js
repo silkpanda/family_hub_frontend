@@ -1,62 +1,59 @@
-// --- File: /frontend/src/pages/DashboardPage.js ---
-// The main dashboard, showing today's meals and events. Serves as the "Kiosk" view.
+import React, { useContext } from 'react';
+import { HouseholdContext } from '../context/HouseholdContext';
+import { TaskContext } from '../context/TaskContext';
+import Card from '../components/ui/Card';
 
-import React, { useState, useContext } from 'react';
-import { useMeals } from '../context/MealContext';
-import { useCalendar } from '../context/CalendarContext';
-import { useFamily } from '../context/FamilyContext';
-import { AuthContext } from '../context/AuthContext';
-import DailyMealPlan from '../components/dashboard/DailyMealPlan';
-import FamilyCalendarView from '../components/dashboard/FamilyCalendarView';
-import PinLoginModal from '../components/auth/PinLoginModal';
-import Button from '../components/shared/Button';
-import { theme } from '../theme/theme';
+const DashboardPage = ({ onSelectMember }) => {
+    const { householdData } = useContext(HouseholdContext);
+    const { tasks, loading: tasksLoading } = useContext(TaskContext);
+    const { household, loading: householdLoading } = householdData;
 
-const DashboardPage = () => {
-    const { state: mealState } = useMeals();
-    const { state: calendarState } = useCalendar();
-    const { state: familyState } = useFamily();
-    const { isAuthenticated } = useContext(AuthContext);
-    const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const members = household?.members || [];
+    const pendingTasks = tasks.filter(task => task.status === 'pending_approval').length;
+    const totalPoints = Array.isArray(members) ? members.reduce((acc, member) => acc + (member.user?.points || 0), 0) : 0;
 
-    const { mealPlan, recipes, recipesLoading, mealPlanLoading } = mealState;
-    const { events } = calendarState;
-    const { family } = familyState;
-
-    const today = new Date();
-    const todayKey = today.toISOString().split('T')[0];
-    const mealsForToday = mealPlan?.plan?.[todayKey] || [];
-    const eventsForToday = (events || []).filter(event => {
-        const eventStart = new Date(event.startTime);
-        return today.toDateString() === eventStart.toDateString();
-    });
-
-    if (calendarState.loading || mealPlanLoading || recipesLoading || familyState.loading) {
-        return <div style={{padding: theme.spacing.lg}}>Loading dashboard...</div>;
+    if (householdLoading || tasksLoading) {
+        return <div className="text-center p-8">Loading dashboard data...</div>;
     }
 
     return (
-        <div style={{ fontFamily: theme.typography.fontFamily, color: theme.colors.textPrimary, padding: theme.spacing.lg }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.lg }}>
-                <h1 style={theme.typography.h1}>Dashboard</h1>
-                {!isAuthenticated && (
-                    <Button variant="primary" onClick={() => setIsPinModalOpen(true)}>Parent Login</Button>
-                )}
-            </div>
-
-            <div style={{ marginBottom: theme.spacing.xl }}>
-                <h2 style={{ ...theme.typography.h3, marginBottom: theme.spacing.md }}>Today's Meals</h2>
-                <DailyMealPlan meals={mealsForToday} allRecipes={recipes} />
-            </div>
-
+        <div className="space-y-8">
             <div>
-                 <h2 style={{ ...theme.typography.h3, marginBottom: theme.spacing.md }}>Who's Doing What Today</h2>
-                <FamilyCalendarView events={eventsForToday} members={family?.members || []} />
+                <h2 className="text-3xl font-bold text-gray-800 mb-4">Dashboard Overview</h2>
+                <p className="text-gray-600">Here's a quick look at your family's activity.</p>
             </div>
-
-            {isPinModalOpen && <PinLoginModal onClose={() => setIsPinModalOpen(false)} />}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="p-6"><h3 className="text-lg font-semibold text-gray-700">Household Members</h3><p className="text-4xl font-bold text-indigo-600">{members.length}</p></Card>
+                <Card className="p-6"><h3 className="text-lg font-semibold text-gray-700">Tasks Awaiting Approval</h3><p className="text-4xl font-bold text-yellow-500">{pendingTasks}</p></Card>
+                <Card className="p-6"><h3 className="text-lg font-semibold text-gray-700">Total Points Earned</h3><p className="text-4xl font-bold text-green-500">{totalPoints}</p></Card>
+            </div>
+            <div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-4">Member Leaderboard</h3>
+                <Card className="overflow-hidden">
+                    <ul className="divide-y divide-gray-200">
+                        {Array.isArray(members) && [...members].sort((a, b) => (b.user?.points || 0) - (a.user?.points || 0)).map(member => (
+                            // Add a check to ensure user and displayName exist
+                            member.user && member.user.displayName && (
+                                <li key={member.user._id} onClick={() => onSelectMember(member.user._id)} className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                                    <div className="flex items-center">
+                                        <div 
+                                            className="h-12 w-12 rounded-full flex items-center justify-center"
+                                            style={{ backgroundColor: member.color }}
+                                        >
+                                            <span className="text-xl font-bold text-white">{(member.user.displayName || '').charAt(0).toUpperCase()}</span>
+                                        </div>
+                                        <div className="ml-4"><p className="text-lg font-semibold text-gray-900">{member.user.displayName}</p><p className="text-sm text-gray-500">{member.user.role === 'parent' ? 'Parent' : 'Child'}</p></div>
+                                    </div>
+                                    <div className="text-xl font-bold text-indigo-600">{member.user.points || 0} pts</div>
+                                </li>
+                            )
+                        ))}
+                    </ul>
+                </Card>
+            </div>
         </div>
     );
 };
 
 export default DashboardPage;
+

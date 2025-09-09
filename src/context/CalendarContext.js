@@ -1,90 +1,125 @@
-// --- File: /frontend/src/context/CalendarContext.js ---
-// Manages state for calendar events, including fetching, creating, updating, and deleting.
+import React, { createContext, useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import { AuthContext } from './AuthContext';
+import { ModalContext } from './ModalContext';
+import { api } from '../api/api';
 
-import React, { createContext, useContext, useReducer, useEffect, useMemo, useCallback } from 'react';
-import CalendarService from '../services/calendar.service.js';
-import { SocketContext } from './SocketContext.js'; // Import context, not the socket instance.
-import { useFamily } from './FamilyContext.js';
-
-const CalendarContext = createContext();
-
-// Custom hook for easy access to calendar context.
-export const useCalendar = () => {
-  const context = useContext(CalendarContext);
-  if (context === undefined) {
-    // Return a default state if used outside the provider to prevent crashes.
-    return { state: { events: [], loading: true, error: null }, actions: {} };
-  }
-  return context;
-};
-
-// Action types for the reducer.
-const actionTypes = { SET_LOADING: 'SET_LOADING', SET_EVENTS: 'SET_EVENTS', ADD_EVENT: 'ADD_EVENT', UPDATE_EVENT: 'UPDATE_EVENT', DELETE_EVENT: 'DELETE_EVENT', SET_ERROR: 'SET_ERROR' };
-
-// Reducer to manage calendar state based on dispatched actions.
-const calendarReducer = (state, action) => {
-  switch (action.type) {
-    case actionTypes.SET_LOADING: return { ...state, loading: true };
-    case actionTypes.SET_EVENTS: return { ...state, loading: false, events: action.payload, error: null };
-    case actionTypes.ADD_EVENT: return { ...state, events: [...state.events, action.payload] };
-    case actionTypes.UPDATE_EVENT: return { ...state, events: state.events.map(event => event._id === action.payload._id ? action.payload : event) };
-    case actionTypes.DELETE_EVENT: return { ...state, events: state.events.filter(event => event._id !== action.payload.id) };
-    case actionTypes.SET_ERROR: return { ...state, loading: false, error: action.payload };
-    default: return state;
-  }
-};
+export const CalendarContext = createContext();
 
 export const CalendarProvider = ({ children }) => {
-  const initialState = { events: [], loading: true, error: null };
-  const [state, dispatch] = useReducer(calendarReducer, initialState);
-  const { state: familyState } = useFamily();
-  const { socket } = useContext(SocketContext); // Get socket from context.
+    const { session } = useContext(AuthContext);
+    const { showModal, hideModal } = useContext(ModalContext);
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-  // useEffect: Set up socket listeners for real-time event updates.
-  useEffect(() => {
-    if (socket) {
-      socket.on('event:created', (newEvent) => dispatch({ type: actionTypes.ADD_EVENT, payload: newEvent }));
-      socket.on('event:updated', (updatedEvent) => dispatch({ type: actionTypes.UPDATE_EVENT, payload: updatedEvent }));
-      socket.on('event:deleted', (data) => dispatch({ type: actionTypes.DELETE_EVENT, payload: data }));
-      return () => { // Cleanup listeners on component unmount.
-        socket.off('event:created');
-        socket.off('event:updated');
-        socket.off('event:deleted');
-      };
-    }
-  }, [socket]); // Add socket as a dependency.
+    // Initial fetch for events when the component loads or household changes
+    const fetchEvents = useCallback(async () => {
+        if (session.mode !== 'loading' && session.activeHouseholdId) {
+            setLoading(true);
+            try {
+                const data = await api.get(`/households/${session.activeHouseholdId}/events`);
+                const formattedEvents = (data || []).map(event => ({
+                    ...event,
+                    start: new Date(event.start),
+                    end: new Date(event.end)
+                }));
+                setEvents(formattedEvents);
+            } catch (error) {
+                console.error("Failed to fetch events:", error);
+                setEvents([]);
+            } finally {
+                setLoading(false);
+            }
+        } else if (session.mode !== 'loading') {
+            setEvents([]);
+            setLoading(false);
+        }
+    }, [session.activeHouseholdId, session.mode]);
 
-  // fetchEvents: Fetches all events for the family from the backend.
-  const fetchEvents = useCallback(async () => {
-    dispatch({ type: actionTypes.SET_LOADING });
-    try {
-      const response = await CalendarService.getEvents();
-      dispatch({ type: actionTypes.SET_EVENTS, payload: response || [] });
-    } catch (err) {
-      dispatch({ type: actionTypes.SET_ERROR, payload: err.message });
-    }
-  }, []);
+    useEffect(() => {
+        fetchEvents();
+    }, [fetchEvents]);
 
-  // useEffect: Fetch events when family data is available.
-  useEffect(() => {
-    if (familyState.family) {
-      fetchEvents();
-    }
-  }, [familyState.family, fetchEvents]);
+    // --- WebSocket Integration for Real-Time Updates ---
+    useEffect(() => {
+        // Only set up listeners if the socket connection exists
+        if (session.socket && session.activeHouseholdId) {
+            
+            // Listener for when a new event is created by anyone in the household
+            const handleEventCreated = (newEvent) => {
+                setEvents(prevEvents => [...prevEvents, { ...newEvent, start: new Date(newEvent.start), end: new Date(newEvent.end) }]);
+            };
 
-  // CRUD actions for events.
-  const createEvent = useCallback(async (eventData) => {
-      try { await CalendarService.createEvent(eventData); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
-  }, []);
-  const updateEvent = useCallback(async (id, eventData) => {
-      try { await CalendarService.updateEvent(id, eventData); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
-  }, []);
-  const deleteEvent = useCallback(async (id) => {
-      try { await CalendarService.deleteEvent(id); } catch (err) { dispatch({ type: actionTypes.SET_ERROR, payload: err.message }); }
-  }, []);
+            // Listener for when an event is updated
+            const handleEventUpdated = (updatedEvent) => {
+                setEvents(prevEvents => prevEvents.map(event =>
+                    event._id === updatedEvent._id ? { ...updatedEvent, start: new Date(updatedEvent.start), end: new Date(updatedEvent.end) } : event
+                ));
+            };
 
-  const actions = useMemo(() => ({ createEvent, updateEvent, deleteEvent }), [createEvent, updateEvent, deleteEvent]);
-  const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
+            // Listener for when an event is deleted
+            const handleEventDeleted = (eventId) => {
+                setEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
+            };
 
-  return <CalendarContext.Provider value={contextValue}>{children}</CalendarContext.Provider>;
+            // Register the listeners
+            session.socket.on('event_created', handleEventCreated);
+            session.socket.on('event_updated', handleEventUpdated);
+            session.socket.on('event_deleted', handleEventDeleted);
+
+            // Cleanup function to remove listeners when the component unmounts or dependencies change
+            return () => {
+                session.socket.off('event_created', handleEventCreated);
+                session.socket.off('event_updated', handleEventUpdated);
+                session.socket.off('event_deleted', handleEventDeleted);
+            };
+        }
+    }, [session.socket, session.activeHouseholdId]);
+
+    // --- Action Functions (now simplified) ---
+
+    const addEvent = useCallback(async (eventData) => {
+        if (!session.activeHouseholdId) return;
+        try {
+            // The backend will now emit a WebSocket event on success. No need to fetchEvents().
+            await api.post(`/households/${session.activeHouseholdId}/events`, eventData);
+        } catch (error) {
+            console.error("Failed to add event:", error);
+            throw new Error("Error adding event");
+        }
+    }, [session.activeHouseholdId]);
+
+    const updateEvent = useCallback(async (eventId, updateData) => {
+        if (!session.activeHouseholdId) return;
+        try {
+            // The backend will now emit a WebSocket event on success. No need to fetchEvents().
+            await api.put(`/households/${session.activeHouseholdId}/events/${eventId}`, updateData);
+        } catch (error) {
+            console.error("Failed to update event:", error);
+            throw new Error("Error updating event");
+        }
+    }, [session.activeHouseholdId]);
+
+    const deleteEvent = useCallback(async (eventId) => {
+        if (!session.activeHouseholdId) return;
+        try {
+            // The backend will now emit a WebSocket event on success. No need to fetchEvents().
+            await api.delete(`/households/${session.activeHouseholdId}/events/${eventId}`);
+            hideModal();
+        } catch (error) {
+            console.error("Failed to delete event:", error);
+            throw new Error("Error deleting event");
+        }
+    }, [session.activeHouseholdId, hideModal]);
+
+    const value = useMemo(() => ({
+        events,
+        loading,
+        addEvent,
+        updateEvent,
+        deleteEvent,
+        refreshCalendar: fetchEvents // Keep for manual refresh if needed
+    }), [events, loading, addEvent, updateEvent, deleteEvent, fetchEvents]);
+
+    return <CalendarContext.Provider value={value}>{children}</CalendarContext.Provider>;
 };
+
