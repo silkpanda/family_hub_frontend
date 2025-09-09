@@ -1,108 +1,79 @@
-import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { io } from "socket.io-client";
+import React, { createContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/api';
+import { useSocket } from './SocketContext';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [session, setSession] = useState({ user: null, mode: 'loading', socket: null, activeHouseholdId: null });
-    const isParentSession = session.mode === 'parent';
+    const [session, setSession] = useState({
+        isAuthenticated: false,
+        user: null,
+        token: localStorage.getItem('jwt_token'),
+        activeHouseholdId: localStorage.getItem('active_household_id'),
+        loading: true,
+    });
+    const { connectSocket, disconnectSocket, socket } = useSocket();
+    const navigate = useNavigate();
 
     const fullLogout = useCallback(() => {
         localStorage.removeItem('jwt_token');
         localStorage.removeItem('active_household_id');
-        if (session.socket) session.socket.disconnect();
-        setSession({ user: null, mode: 'logged-out', socket: null, activeHouseholdId: null });
-    }, [session.socket]);
+        setSession({
+            isAuthenticated: false,
+            user: null,
+            token: null,
+            activeHouseholdId: null,
+            loading: false,
+        });
+        disconnectSocket();
+        navigate('/login');
+    }, [disconnectSocket, navigate]);
 
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const tokenFromUrl = urlParams.get('token');
-        
-        if (tokenFromUrl) {
-            localStorage.setItem('jwt_token', tokenFromUrl);
-            window.history.replaceState({}, document.title, "/");
-        }
-
-        const validateSession = async () => {
+        const verifySession = async () => {
             const token = localStorage.getItem('jwt_token');
             if (token) {
                 try {
-                    const user = await api.get('/auth/session');
-                    if (!user) throw new Error("User data not received.");
-                    
-                    const socket = io('http://localhost:5000');
-                    
-                    let activeHouseholdId = null;
-                    if (user.households && user.households.length > 0) {
-                        const lastActiveId = localStorage.getItem('active_household_id');
-                        const householdIds = user.households.map(h => h._id || h);
-                        activeHouseholdId = householdIds.includes(lastActiveId) ? lastActiveId : householdIds[0];
-                        
-                        if (activeHouseholdId) {
-                            localStorage.setItem('active_household_id', activeHouseholdId);
-                            socket.emit('joinHouseholdRoom', activeHouseholdId);
-                        }
-                    }
-                    
-                    setSession({ user, mode: 'kiosk', socket, activeHouseholdId });
+                    const data = await api.get('/auth/session');
+                    setSession(prev => ({
+                        ...prev,
+                        isAuthenticated: true,
+                        user: data.user,
+                        activeHouseholdId: data.user.activeHouseholdId,
+                        loading: false,
+                    }));
+                    connectSocket(token);
                 } catch (error) {
-                    console.error("Session validation failed:", error);
+                    console.error("Session verification failed:", error);
                     fullLogout();
                 }
             } else {
-                setSession({ user: null, mode: 'logged-out', socket: null, activeHouseholdId: null });
+                setSession(prev => ({ ...prev, loading: false }));
             }
         };
 
-        validateSession();
-    // CORRECTED: The dependency array is now empty, so this effect will only run once.
-    }, []);
+        verifySession();
+    }, [connectSocket, fullLogout]);
 
-    const refreshSession = useCallback(async () => {
-        try {
-            const user = await api.get('/auth/session');
-            let activeHouseholdId = session.activeHouseholdId;
-            if (user.households && user.households.length > 0) {
-                const lastActiveId = localStorage.getItem('active_household_id');
-                const householdIds = user.households.map(h => h._id || h);
-                activeHouseholdId = householdIds.includes(lastActiveId) ? lastActiveId : householdIds[0];
-                if(activeHouseholdId) {
-                    localStorage.setItem('active_household_id', activeHouseholdId);
-                }
-            }
-            setSession(s => ({ ...s, user, activeHouseholdId }));
-        } catch (error) {
-            console.error("Failed to refresh session:", error);
-            fullLogout();
-        }
-    }, [fullLogout, session.activeHouseholdId]);
+    const login = (userData) => {
+        localStorage.setItem('jwt_token', userData.token);
+        localStorage.setItem('active_household_id', userData.user.activeHouseholdId);
+        setSession({
+            isAuthenticated: true,
+            user: userData.user,
+            token: userData.token,
+            activeHouseholdId: userData.user.activeHouseholdId,
+            loading: false,
+        });
+        connectSocket(userData.token);
+    };
 
-    const setPin = useCallback(async (pin) => {
-        try {
-            await api.post('/auth/pin/set', { pin });
-            await refreshSession();
-            return true;
-        } catch (error) {
-            return error.message || "An unknown error occurred.";
-        }
-    }, [refreshSession]);
-    
-    const googleLogin = useCallback(() => { window.location.href = `http://localhost:5000/api/auth/google`; }, []);
+    const value = { session, login, logout: fullLogout, setSession, socket };
 
-    const pinLogin = useCallback(async (pin) => {
-        try {
-            await api.post('/auth/pin/login', { pin });
-            setSession(s => ({ ...s, mode: 'parent' }));
-            return true;
-        } catch (e) { return false; }
-    }, []);
-
-    const lockSession = useCallback(() => { setSession(s => ({ ...s, mode: 'kiosk' })); }, []);
-
-    const value = useMemo(() => ({
-        session, isParentSession, googleLogin, pinLogin, lockSession, fullLogout, refreshSession, setPin
-    }), [session, isParentSession, googleLogin, pinLogin, lockSession, fullLogout, refreshSession, setPin]);
-
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>
+            {!session.loading && children}
+        </AuthContext.Provider>
+    );
 };
