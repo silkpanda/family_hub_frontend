@@ -1,4 +1,7 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+// The base URL is now determined by an environment variable.
+// For Create React App, this variable MUST be named starting with REACT_APP_
+// It falls back to your local server URL for development.
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000/api';
 
 const request = async (endpoint, options = {}) => {
     const token = localStorage.getItem('jwt_token');
@@ -23,7 +26,6 @@ const request = async (endpoint, options = {}) => {
     return;
 };
 
-// Use a named export here
 export const api = {
     get: (endpoint) => request(endpoint),
     post: (endpoint, body) => request(endpoint, { method: 'POST', body: JSON.stringify(body) }),
