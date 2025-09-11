@@ -1,79 +1,80 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/api';
 import { useSocket } from './SocketContext';
 
 export const AuthContext = createContext();
 
+// This is the new custom hook that was missing
+export const useAuth = () => {
+    return useContext(AuthContext);
+};
+
 export const AuthProvider = ({ children }) => {
-    const [session, setSession] = useState({
-        isAuthenticated: false,
-        user: null,
-        token: localStorage.getItem('jwt_token'),
-        activeHouseholdId: localStorage.getItem('active_household_id'),
-        loading: true,
-    });
-    const { connectSocket, disconnectSocket, socket } = useSocket();
+    const [session, setSession] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [isParentSession, setIsParentSession] = useState(false);
     const navigate = useNavigate();
+    const { connectSocket, disconnectSocket } = useSocket();
 
     const fullLogout = useCallback(() => {
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('active_household_id');
-        setSession({
-            isAuthenticated: false,
-            user: null,
-            token: null,
-            activeHouseholdId: null,
-            loading: false,
+        api.post('/auth/logout').finally(() => {
+            localStorage.removeItem('session_token');
+            setSession(null);
+            setIsParentSession(false);
+            disconnectSocket();
+            navigate('/login');
         });
-        disconnectSocket();
-        navigate('/login');
     }, [disconnectSocket, navigate]);
 
     useEffect(() => {
         const verifySession = async () => {
-            const token = localStorage.getItem('jwt_token');
+            const token = localStorage.getItem('session_token');
             if (token) {
                 try {
                     const data = await api.get('/auth/session');
-                    setSession(prev => ({
-                        ...prev,
-                        isAuthenticated: true,
-                        user: data.user,
-                        activeHouseholdId: data.user.activeHouseholdId,
-                        loading: false,
-                    }));
-                    connectSocket(token);
+                    if (data && data.user) {
+                        setSession(data);
+                        setIsParentSession(data.isParent);
+                        connectSocket(token);
+                    } else {
+                        throw new Error('Invalid session');
+                    }
                 } catch (error) {
-                    console.error("Session verification failed:", error);
                     fullLogout();
                 }
-            } else {
-                setSession(prev => ({ ...prev, loading: false }));
             }
+            setLoading(false);
         };
-
         verifySession();
     }, [connectSocket, fullLogout]);
 
-    const login = (userData) => {
-        localStorage.setItem('jwt_token', userData.token);
-        localStorage.setItem('active_household_id', userData.user.activeHouseholdId);
-        setSession({
-            isAuthenticated: true,
-            user: userData.user,
-            token: userData.token,
-            activeHouseholdId: userData.user.activeHouseholdId,
-            loading: false,
-        });
-        connectSocket(userData.token);
+    const lockSession = () => {
+        setIsParentSession(false);
     };
 
-    const value = { session, login, logout: fullLogout, setSession, socket };
+    const unlockParentSession = async (pin) => {
+        try {
+            await api.post('/auth/verify-pin', { pin });
+            setIsParentSession(true);
+            return true;
+        } catch (error) {
+            console.error('PIN verification failed:', error);
+            return false;
+        }
+    };
 
-    return (
-        <AuthContext.Provider value={value}>
-            {!session.loading && children}
-        </AuthContext.Provider>
-    );
+    const value = {
+        session,
+        setSession,
+        loading,
+        isParentSession,
+        setIsParentSession,
+        fullLogout,
+        lockSession,
+        unlockParentSession,
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
