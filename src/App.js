@@ -31,79 +31,86 @@ import { RewardProvider } from './context/RewardContext';
 // --- Styles ---
 import './styles/main.css';
 
+// This new component wraps all the providers and routes
+const AppContent = () => {
+    return (
+        <SocketProvider>
+            <AuthProvider>
+                <ModalProvider>
+                    <HouseholdProvider>
+                        <TaskProvider>
+                            <CalendarProvider>
+                                <RewardProvider>
+                                    <Routes>
+                                        {/* Public Routes */}
+                                        <Route
+                                            path="/login"
+                                            element={<LoginPage />}
+                                        />
+
+                                        {/* Private Routes */}
+                                        <Route
+                                            path="/*"
+                                            element={
+                                                <PrivateRoute>
+                                                    <MainLayout />
+                                                </PrivateRoute>
+                                            }
+                                        >
+                                            {/* Nested routes within MainLayout */}
+                                            <Route
+                                                index
+                                                element={
+                                                    <Navigate
+                                                        to="/dashboard"
+                                                        replace
+                                                    />
+                                                }
+                                            />
+                                            <Route
+                                                path="dashboard"
+                                                element={<DashboardPage />}
+                                            />
+                                            <Route
+                                                path="tasks"
+                                                element={<TasksPage />}
+                                            />
+                                            <Route
+                                                path="calendar"
+                                                element={<CalendarPage />}
+                                            />
+                                            <Route
+                                                path="store"
+                                                element={<StorePage />}
+                                            />
+                                            <Route
+                                                path="meal-planner"
+                                                element={
+                                                    <MealPlannerPage />
+                                                }
+                                            />
+                                            <Route
+                                                path="household"
+                                                element={
+                                                    <ManageHouseholdPage />
+                                                }
+                                            />
+                                        </Route>
+                                    </Routes>
+                                </RewardProvider>
+                            </CalendarProvider>
+                        </TaskProvider>
+                    </HouseholdProvider>
+                </ModalProvider>
+            </AuthProvider>
+        </SocketProvider>
+    );
+};
+
 function App() {
     return (
         <Router>
-            <SocketProvider>
-                <AuthProvider>
-                    <ModalProvider>
-                        <HouseholdProvider>
-                            <TaskProvider>
-                                <CalendarProvider>
-                                    <RewardProvider>
-                                        <Routes>
-                                            {/* Public Routes */}
-                                            <Route
-                                                path="/login"
-                                                element={<LoginPage />}
-                                            />
-
-                                            {/* Private Routes */}
-                                            <Route
-                                                path="/*"
-                                                element={
-                                                    <PrivateRoute>
-                                                        <MainLayout />
-                                                    </PrivateRoute>
-                                                }
-                                            >
-                                                {/* Nested routes within MainLayout */}
-                                                <Route
-                                                    index
-                                                    element={
-                                                        <Navigate
-                                                            to="/dashboard"
-                                                            replace
-                                                        />
-                                                    }
-                                                />
-                                                <Route
-                                                    path="dashboard"
-                                                    element={<DashboardPage />}
-                                                />
-                                                <Route
-                                                    path="tasks"
-                                                    element={<TasksPage />}
-                                                />
-                                                <Route
-                                                    path="calendar"
-                                                    element={<CalendarPage />}
-                                                />
-                                                <Route
-                                                    path="store"
-                                                    element={<StorePage />}
-                                                />
-                                                <Route
-                                                    path="meal-planner"
-                                                    element={
-                                                        <MealPlannerPage />
-                                                    }
-                                                />
-                                                <Route
-                                                    path="household"
-                                                    element={
-                                                        <ManageHouseholdPage />
-                                                    }
-                                                />
-                                            </Route>
-                                        </Routes>
-                                    </RewardProvider>
-                                </CalendarProvider>
-                            </TaskProvider>
-                        </HouseholdProvider>
-                    </ModalProvider>
-                </AuthProvider>
-            </SocketProvider>
+            <AppContent />
         </Router>
     );
 }
