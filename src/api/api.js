@@ -1,57 +1,62 @@
-// This file configures the base URL for all frontend API calls.
+// This utility configures all API calls for the application.
 
-// It reads the backend URL from the environment variables provided by Netlify during the build.
-// If the variable is not found (e.g., during local development), it falls back to a localhost URL.
+// Read the backend URL from environment variables.
+// This allows the app to connect to the correct backend whether it's running
+// locally for development or in production on Netlify.
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000/api';
 
 console.log(`API calls are being sent to: ${API_BASE_URL}`);
 
-// A helper object to make consistent API calls
+// A helper function to handle API responses.
+const handleResponse = async (response) => {
+    if (!response.ok) {
+        // If the server responds with an error, throw an error to be caught by the caller.
+        const errorData = await response.json().catch(() => ({ message: 'Network response was not ok.' }));
+        throw new Error(errorData.message || 'Network response was not ok.');
+    }
+    // If the response is successful, parse the JSON body.
+    return response.json();
+};
+
+// The main API object with methods for different types of requests.
 export const api = {
-    async get(endpoint, token) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    async get(endpoint) {
+        return fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-        if (!response.ok) throw new Error('Network response was not ok.');
-        return response.json();
+            // This 'credentials: include' option tells the browser to
+            // always send the session cookie with this request. This is
+            // essential for the backend to know who is logged in.
+            credentials: 'include',
+        }).then(handleResponse);
     },
-    async post(endpoint, body, token) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+
+    async post(endpoint, body) {
+        return fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify(body),
-        });
-        if (!response.ok) throw new Error('Network response was not ok.');
-        return response.json();
+        }).then(handleResponse);
     },
-    async put(endpoint, body, token) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+
+    async put(endpoint, body) {
+        return fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify(body),
-        });
-        if (!response.ok) throw new Error('Network response was not ok.');
-        return response.json();
+        }).then(handleResponse);
     },
-    async delete(endpoint, token) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+
+    async delete(endpoint) {
+        return fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        });
-        if (!response.ok) throw new Error('Network response was not ok.');
-        return response.json();
+            credentials: 'include',
+        }).then(handleResponse);
     },
 };
 
