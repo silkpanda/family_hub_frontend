@@ -1,4 +1,4 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useContext } from 'react'; // <-- Added useContext
 import PinModal from '../components/ui/PinModal';
 import AddEditMemberModal from '../components/household/AddEditMemberModal';
 import AddEditTaskModal from '../components/tasks/AddEditTaskModal';
@@ -6,10 +6,15 @@ import AddEditEventModal from '../components/calendar/AddEditEventModal';
 import ColorPickerModal from '../components/household/ColorPickerModal';
 import AddEditRewardModal from '../components/rewards/AddEditRewardModal';
 import AddEditRecipeModal from '../components/meal-planner/AddEditRecipeModal';
-import AddEditRestaurantModal from '../components/meal-planner/AddEditRestaurantModal'; // Import the new modal
+import AddEditRestaurantModal from '../components/meal-planner/AddEditRestaurantModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 
 export const ModalContext = createContext();
+
+// This is the missing hook that will fix the build error
+export const useModal = () => {
+    return useContext(ModalContext);
+};
 
 export const ModalProvider = ({ children }) => {
     const [modal, setModal] = useState(null);
@@ -54,3 +59,4 @@ export const ModalProvider = ({ children }) => {
         </ModalContext.Provider>
     );
 };
+
