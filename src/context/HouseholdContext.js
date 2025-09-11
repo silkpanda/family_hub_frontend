@@ -1,122 +1,63 @@
-import React, { createContext, useState, useEffect, useCallback, useMemo, useContext } from 'react';
-import { AuthContext } from './AuthContext';
+import React, {
+    createContext,
+    useState,
+    useEffect,
+    useContext,
+    useCallback,
+} from 'react';
+import { useAuth } from './AuthContext'; // It's better to use the custom hook
 import { api } from '../api/api';
 
 export const HouseholdContext = createContext();
 
+export const useHousehold = () => useContext(HouseholdContext);
+
 export const HouseholdProvider = ({ children }) => {
-    const { session } = useContext(AuthContext);
-    const [householdData, setHouseholdData] = useState({ household: null, loading: true });
+    const { session } = useAuth();
+    const [householdData, setHouseholdData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const fetchHouseholdData = useCallback(async () => {
-        if (session.mode !== 'loading' && session.activeHouseholdId) {
-            setHouseholdData({ household: null, loading: true });
-            try {
-                const data = await api.get(`/households/${session.activeHouseholdId}`);
-                
-                // Log the raw data from the API to help with debugging
-                console.log('Raw household data from API:', JSON.stringify(data, null, 2));
-
-                // Add a filter to ensure all members have valid user data before setting state.
-                // This prevents crashes from incomplete data from the backend.
-                if (data && data.members) {
-                    data.members = data.members.filter(member => 
-                        member && member.user && member.user._id && member.user.displayName
-                    );
-                }
-
-                setHouseholdData({ household: data, loading: false });
-            } catch (error) {
-                console.error("Failed to fetch household data:", error);
-                setHouseholdData({ household: null, loading: false });
-            }
-        } else if (session.mode !== 'loading') {
-            setHouseholdData({ household: null, loading: false });
+        // --- THIS IS THE FIX ---
+        // If there's no session, we can't fetch anything.
+        // Set loading to false and stop here.
+        if (!session || !session.activeHouseholdId) {
+            setLoading(false);
+            return;
         }
-    }, [session.activeHouseholdId, session.mode]);
+
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await api.get(
+                `/households/${session.activeHouseholdId}`
+            );
+            setHouseholdData(data);
+        } catch (err) {
+            console.error('Failed to fetch household data:', err);
+            setError(
+                'Could not load household information. Please try again later.'
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, [session]); // The dependency on `session` is key
 
     useEffect(() => {
         fetchHouseholdData();
     }, [fetchHouseholdData]);
 
-    useEffect(() => {
-        if (session.socket) {
-            const handlePointsUpdated = ({ userId, newPoints }) => {
-                setHouseholdData(prevData => {
-                    if (!prevData.household) return prevData;
-
-                    const updatedMembers = prevData.household.members.map(member => {
-                        // Add a safer check to ensure member and user objects exist
-                        if (member && member.user && member.user._id === userId) {
-                            return { ...member, user: { ...member.user, points: newPoints } };
-                        }
-                        return member;
-                    });
-
-                    return { ...prevData, household: { ...prevData.household, members: updatedMembers } };
-                });
-            };
-
-            session.socket.on('points_updated', handlePointsUpdated);
-
-            return () => {
-                session.socket.off('points_updated', handlePointsUpdated);
-            };
-        }
-    }, [session.socket]);
-
-    const addMember = useCallback(async (memberData) => {
-        if (!householdData.household?._id) return;
-        await api.post(`/households/${householdData.household._id}/members`, memberData);
-        await fetchHouseholdData();
-    }, [householdData.household, fetchHouseholdData]);
-
-    const updateMember = useCallback(async (memberId, updateData) => {
-        if (!householdData.household?._id) return;
-        await api.put(`/households/${householdData.household._id}/members/${memberId}`, updateData);
-        await fetchHouseholdData();
-    }, [householdData.household, fetchHouseholdData]);
-
-    const deleteMember = useCallback(async (memberId) => {
-        if (!householdData.household?._id) return;
-        try {
-            await api.delete(`/households/${householdData.household._id}/members/${memberId}`);
-            await fetchHouseholdData();
-        } catch (error) {
-            console.error("Failed to delete member:", error);
-        }
-    }, [householdData.household, fetchHouseholdData]);
-
-    const linkCalendar = useCallback(async (memberId) => {
-        if (!householdData.household?._id) return;
-        try {
-            await api.post(`/households/${householdData.household._id}/members/${memberId}/link-calendar`);
-            await fetchHouseholdData();
-        } catch (error) {
-            console.error("Failed to link calendar:", error);
-        }
-    }, [householdData.household, fetchHouseholdData]);
-
-    const updateMemberColor = useCallback(async (memberId, color) => {
-        if (!householdData.household?._id) return;
-        try {
-            await api.put(`/households/${householdData.household._id}/members/${memberId}/color`, { color });
-            await fetchHouseholdData();
-        } catch (error) {
-            console.error("Failed to update member color:", error);
-        }
-    }, [householdData.household, fetchHouseholdData]);
-
-    const value = useMemo(() => ({
+    const value = {
         householdData,
-        addMember,
-        updateMember,
-        deleteMember,
-        linkCalendar,
-        updateMemberColor,
-        refreshHouseholdData: fetchHouseholdData
-    }), [householdData, addMember, updateMember, deleteMember, linkCalendar, updateMemberColor, fetchHouseholdData]);
+        loading,
+        error,
+        refreshHouseholdData: fetchHouseholdData, // Expose a refresh function
+    };
 
-    return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>;
+    return (
+        <HouseholdContext.Provider value={value}>
+            {children}
+        </HouseholdContext.Provider>
+    );
 };
-
